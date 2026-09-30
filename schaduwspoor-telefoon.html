@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0}</style>
+<title>Schaduwspoor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600&display=swap">
+<style>
+/* Layout: één scherm als nachtkaart; dossierpapier schuift er als vel overheen. Eén donkere wereld, bewust zonder licht thema. */
+:root{
+  color-scheme:dark;
+  --night:#101a2b; --night2:#182741; --street:#2c3f62; --fog:#93a6c6;
+  --paper:#ece4d2; --ink:#1b2233; --lamp:#f0a63a; --spook:#a6ead9; --blood:#d8503f;
+  --f-type:'Special Elite','Courier New',monospace;
+  --f-body:'Barlow','Segoe UI',system-ui,sans-serif;
+  --f-cond:'Barlow Condensed','Arial Narrow',sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--night);color:var(--paper);font-family:var(--f-body);font-size:16px;line-height:1.45;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+#app{height:100%;position:relative}
+.screen{position:absolute;inset:0;overflow-y:auto;padding-inline:16px;padding-block:20px}
+.wrap{max-width:520px;margin-inline:auto;display:flex;flex-direction:column;gap:18px}
+h1{font-family:var(--f-type);font-weight:400;font-size:clamp(40px,12vw,58px);line-height:1;margin:0;color:var(--lamp);text-wrap:balance}
+h2{font-family:var(--f-type);font-weight:400;font-size:22px;margin:0;text-wrap:balance}
+.eyebrow{font-family:var(--f-cond);text-transform:uppercase;letter-spacing:.14em;font-size:13px;color:var(--fog)}
+p{margin:0}
+.lead{color:var(--fog);max-width:46ch}
+.btn{display:block;width:100%;padding:14px 16px;border-radius:4px;background:var(--lamp);color:var(--ink);font-weight:600;font-size:17px;text-align:center}
+.btn.ghost{background:transparent;color:var(--paper);border:1px solid var(--street)}
+.btn.red{background:var(--blood);color:#fff}
+.btn:disabled{opacity:.45}
+.strip{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--street);border:1px solid var(--street)}
+.strip div{background:var(--night2);padding:10px 8px;text-align:center}
+.strip b{display:block;font-family:var(--f-type);font-weight:400;font-size:20px;color:var(--spook);font-variant-numeric:tabular-nums}
+.strip span{font-family:var(--f-cond);text-transform:uppercase;letter-spacing:.1em;font-size:11px;color:var(--fog)}
+.xp{height:6px;background:var(--night2);border-radius:3px;overflow:hidden}
+.xp i{display:block;height:100%;background:var(--lamp)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg button{padding:10px;border:1px solid var(--street);border-radius:4px;color:var(--fog)}
+.seg button[aria-pressed="true"]{border-color:var(--lamp);color:var(--lamp)}
+.how{display:flex;flex-direction:column;gap:6px;color:var(--fog);font-size:15px;padding-left:18px;margin:0}
+.note{font-size:13px;color:var(--fog)}
+/* papier */
+.paper{background:var(--paper);color:var(--ink);padding:18px 16px;border-radius:2px;display:flex;flex-direction:column;gap:12px}
+.paper h2{color:var(--ink)}
+.paper .eyebrow{color:#6a6250}
+/* kaart */
+#play{padding:0;overflow:hidden}
+#map{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+#hud{position:absolute;top:0;left:0;right:0;display:grid;grid-template-columns:repeat(4,1fr);background:rgba(16,26,43,.88);border-bottom:1px solid var(--street);padding-top:env(safe-area-inset-top,0px)}
+#hud div{padding:7px 4px;text-align:center}
+#hud b{display:block;font-family:var(--f-type);font-weight:400;font-size:17px;font-variant-numeric:tabular-nums}
+#hud span{font-family:var(--f-cond);text-transform:uppercase;letter-spacing:.1em;font-size:10px;color:var(--fog)}
+#zoom{position:absolute;right:12px;top:74px;display:flex;flex-direction:column;gap:6px}
+#zoom button{width:42px;height:42px;background:rgba(24,39,65,.92);border:1px solid var(--street);border-radius:4px;font-size:20px}
+#low{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:8px;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px))}
+#radar{align-self:flex-start;background:rgba(16,26,43,.9);border:1px solid var(--street);border-radius:20px;padding:5px 12px;font-size:13px;color:var(--spook)}
+#chip{background:var(--paper);color:var(--ink);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:8px}
+#chip .row{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+#chip b{font-family:var(--f-type);font-weight:400;font-size:17px;min-width:0}
+#chip .btn{padding:10px;font-size:15px}
+#bar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+#bar button{padding:12px 4px;background:rgba(24,39,65,.95);border:1px solid var(--street);border-radius:4px;font-family:var(--f-cond);text-transform:uppercase;letter-spacing:.08em;font-size:14px}
+#bar button.red{background:var(--blood);border-color:var(--blood);color:#fff}
+/* vellen */
+.sheet{position:absolute;inset:0;background:rgba(8,13,22,.78);display:flex;align-items:flex-end;justify-content:center;z-index:5}
+.sheet>.paper{width:100%;max-width:560px;max-height:92%;overflow-y:auto;border-radius:6px 6px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+.tabs{display:flex;gap:6px}
+.tabs button{flex:1;padding:8px;border-bottom:2px solid #c9bfa6;font-family:var(--f-cond);text-transform:uppercase;letter-spacing:.08em;font-size:14px;color:#6a6250}
+.tabs button[aria-selected="true"]{border-color:var(--blood);color:var(--ink)}
+.sus{display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid #c9bfa6;border-radius:3px;text-align:left;width:100%}
+.sus b{font-family:var(--f-type);font-weight:400}
+.sus small{color:#6a6250}
+.sus.out{opacity:.4;text-decoration:line-through}
+.sus.pick{border-color:var(--blood);box-shadow:inset 0 0 0 1px var(--blood)}
+.tags{display:flex;flex-wrap:wrap;gap:4px}
+.tags i{font-style:normal;font-size:12px;background:#d9cfb6;padding:2px 6px;border-radius:2px}
+.clue{padding:10px;border-left:3px solid var(--lamp);background:#e2d8c0;display:flex;flex-direction:column;gap:4px;text-align:left;width:100%}
+.clue.wit{border-color:#3d8f80}
+.clue.m1{border-color:#2e7d4f}.clue.m2{border-color:var(--blood)}
+.clue em{font-style:normal;font-family:var(--f-cond);text-transform:uppercase;letter-spacing:.08em;font-size:12px;color:#6a6250}
+.list{display:flex;flex-direction:column;gap:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:360px){.grid2{grid-template-columns:1fr}}
+#mgbox{display:flex;flex-direction:column;gap:10px;align-items:center}
+#mgbox canvas.sq{width:min(260px,100%);aspect-ratio:1;background:var(--night);border-radius:4px;touch-action:none}
+.dustw{position:relative;width:min(260px,100%);aspect-ratio:1;background:var(--night);border-radius:4px;overflow:hidden}
+.dustw canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.dustw div{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;font-family:var(--f-type);color:var(--lamp);font-size:22px}
+.lans{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:min(220px,100%);background:var(--night);padding:16px;border-radius:4px}
+.lan{aspect-ratio:1;border-radius:50%;background:#2a3550;border:2px solid #4a5b79}
+.lan.on{background:var(--lamp);box-shadow:0 0 22px var(--lamp)}
+.dig{display:flex;gap:8px}
+.dig button{width:54px;height:60px;background:var(--ink);color:var(--paper);font-family:var(--f-type);font-size:28px;border-radius:4px}
+.hist{display:flex;flex-direction:column;gap:4px;font-family:var(--f-type)}
+.hist span{display:inline-block;width:30px;text-align:center;padding:2px;margin:0 2px;border-radius:2px;color:#fff}
+.g0{background:#8a8372}.g1{background:#b8860b}.g2{background:#2e7d4f}
+.big{font-family:var(--f-type);font-size:30px;letter-spacing:.2em;background:var(--ink);color:var(--spook);padding:14px 10px;border-radius:4px;width:100%;text-align:center;overflow-wrap:anywhere}
+.rowb{display:flex;gap:8px;width:100%}
+.rowb .btn{padding:10px}
+.btn.dk{color:var(--ink);border-color:#c9bfa6}
+input[type=range]{width:100%;accent-color:var(--blood)}
+.book{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.book div{border:1px solid #c9bfa6;border-radius:3px;padding:8px 6px;text-align:center;font-size:12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.book div.no{opacity:.35}
+.book b{font-family:var(--f-type);font-weight:400;font-size:13px}
+.r1{color:#3d6f66}.r2{color:#7a4fa3}.r3{color:#b5651d}
+.stars{font-size:34px;letter-spacing:6px;color:var(--lamp);font-family:var(--f-type)}
+#ar{position:absolute;inset:0;z-index:8;background:#000}
+#ar video,#ar canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;touch-action:none}
+#arX{position:absolute;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));width:auto;background:rgba(16,26,43,.8)}
+#toast{position:absolute;left:50%;top:70px;transform:translateX(-50%);background:var(--lamp);color:var(--ink);padding:8px 14px;border-radius:4px;font-weight:600;z-index:9;max-width:88%;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <section class="screen" id="home">
+    <div class="wrap">
+      <div><div class="eyebrow">Een moordzaak in je eigen straten</div><h1>Schaduw&shy;spoor</h1></div>
+      <p class="lead">Loop door je buurt. Zoek bewijs, vang de schimmen die iets gezien hebben en wijs de dader aan. Precies één getuige liegt.</p>
+      <div class="strip">
+        <div><b id="pRank">Aspirant</b><span>Rang</span></div>
+        <div><b id="pStreak">0</b><span>Dagen op rij</span></div>
+        <div><b id="pBook">0/12</b><span>Schimmen</span></div>
+      </div>
+      <div><div class="xp"><i id="pXp" style="width:0%"></i></div><p class="note" id="pNext"></p></div>
+      <div class="seg" id="len">
+        <button type="button" data-r="380" data-par="45" aria-pressed="false">Kort · 45 min</button>
+        <button type="button" data-r="650" data-par="90" aria-pressed="true">Volledig · 90 min</button>
+      </div>
+      <button class="btn" id="bResume" hidden>Ga verder met je zaak</button>
+      <button class="btn" id="bGps">Start de zaak van vandaag</button>
+      <button class="btn ghost" id="bRandom">Extra zaak op deze plek</button>
+      <button class="btn ghost" id="bDemo">Oefenronde zonder lopen</button>
+      <p class="note" id="status"></p>
+      <ol class="how">
+        <li>De kaart zet acht sporen neer bij echte plekken om je heen: de kerk, de bushalte, het café.</li>
+        <li>Kom binnen 35 meter en het spoor gaat open. Bewijs is altijd waar. Van de vijf getuigen liegt er één.</li>
+        <li>Zeldzame schimmen duiken alleen op als je dichtbij bent. Vang ze voor je Schimmenboek en een tip.</li>
+      </ol>
+      <button class="btn ghost" id="bBookHome">Schimmenboek</button>
+      <p class="note">Blijf op de openbare weg en let op het verkeer. Je hoeft nergens naar binnen.</p>
+    </div>
+  </section>
+
+  <section class="screen" id="brief" hidden>
+    <div class="wrap">
+      <div class="paper">
+        <div class="eyebrow" id="bfNo"></div>
+        <h2 id="bfTitle"></h2>
+        <p id="bfText"></p>
+        <div class="eyebrow">Zes verdachten</div>
+        <div class="list" id="bfSus"></div>
+      </div>
+      <button class="btn" id="bGo">De nacht in</button>
+    </div>
+  </section>
+
+  <section class="screen" id="play" hidden>
+    <canvas id="map"></canvas>
+    <div id="hud">
+      <div><b id="hT">0:00</b><span>Tijd</span></div>
+      <div><b id="hS">0/8</b><span>Sporen</span></div>
+      <div><b id="hG">0/3</b><span>Schimmen</span></div>
+      <div><b id="hD">0,0</b><span>Km</span></div>
+    </div>
+    <div id="zoom">
+      <button type="button" id="zIn" aria-label="Inzoomen">+</button>
+      <button type="button" id="zOut" aria-label="Uitzoomen">−</button>
+      <button type="button" id="zMe" aria-label="Centreer op mij">◎</button>
+    </div>
+    <div id="low">
+      <div id="radar">Zoek het eerste spoor</div>
+      <div id="chip" hidden>
+        <div class="row"><b id="cName"></b><span id="cDist"></span></div>
+        <span id="cHint" class="note" style="color:#6a6250"></span>
+        <button class="btn" id="cAct"></button>
+      </div>
+      <div id="bar">
+        <button type="button" id="bNote">Notitieboek</button>
+        <button type="button" id="bBook">Schimmen</button>
+        <button type="button" id="bAcc" class="red">Beschuldig</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="sheet" id="sheet" hidden><div class="paper" id="sheetBody"></div></div>
+  <div id="ar" hidden><video id="arV" playsinline muted autoplay></video><canvas id="arC"></canvas><button type="button" class="btn ghost" id="arX">Camera uit</button></div>
+  <div id="toast" hidden></div>
+</div>
+
+<script>
+/* ---------- zaakgenerator (puur, controleerbaar) ---------- */
+function rngOf(seed){let a=seed>>>0;return function(){a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
+function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function shuffle(a,r){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+const POOL=[["Ilse Verbrugge","de notaris"],["Ruben Achterberg","de slager"],["Mirjam de Wolf","de dirigente"],["Tobias Koolen","de taxichauffeur"],["Fenna Oosterhout","de dierenarts"],["Hendrik Maas","de kastelein"],["Saar Lindeman","de journaliste"],["Otto Pruim","de antiquair"],["Noor Haverkamp","de wethouder"],["Gijs Terlouw","de fietsenmaker"]];
+const VICTIMS=[["Cornelis Vermaat","gepensioneerd bankdirecteur","Hij leende half het dorp geld en vergat nooit een schuld."],["Adèle Rozenburg","kunsthandelaar","Ze verkocht vorige maand een schilderij dat niet van haar was."],["Wessel Dijkgraaf","projectontwikkelaar","Zijn bouwplan zou zes tuinen en één kroeg laten verdwijnen."],["Thera Blom","dorpsarchivaris","Ze had net een doos oude brieven gevonden en wilde erover praten."]];
+const TR={jas:["zwart","grijs","rood"],bril:["bril","geen bril"],hand:["links","rechts"],schoen:["laarzen","sneakers","nette schoenen"],lengte:["lang","kort"]};
+const TRL={jas:"jas",bril:"",hand:"handig",schoen:"",lengte:""};
+const ADJ={zwart:"zwarte",grijs:"grijze",rood:"rode"};
+function evText(t,v){
+  if(t==="jas")return["Vezel","Aan het hek hangt een "+ADJ[v]+" wollen vezel. De dader droeg een "+ADJ[v]+" jas."];
+  if(t==="bril")return v==="bril"?["Brilpoot","In de goot ligt een afgebroken brilpoot met bloed eraan. De dader draagt een bril."]:["Camerabeeld","Een deurbelcamera ving het gezicht. Onscherp, maar zeker: de dader draagt geen bril."];
+  if(t==="hand")return["Sectierapport","De hoek van de wond laat geen twijfel. De dader is "+v+"handig."];
+  if(t==="schoen")return["Schoenafdruk","Een verse afdruk in de modder. De dader droeg "+v+"."];
+  return["Schaduwfoto","De lantaarn wierp een schaduw op de muur. De dader is "+(v==="lang"?"lang":"klein van stuk")+"."];
+}
+function witText(t,v){
+  if(t==="jas")return"Ik zag iemand wegrennen in een "+ADJ[v]+" jas.";
+  if(t==="bril")return v==="bril"?"Die figuur droeg een bril. Het glas blonk in het lantaarnlicht.":"Ik keek die figuur recht aan. Geen bril.";
+  if(t==="hand")return"Die gooide iets in de struiken. Met "+v+".";
+  if(t==="schoen")return v==="laarzen"?"Ik hoorde zware laarzen op de klinkers.":v==="sneakers"?"Sneakers had die aan. Dat zag ik goed.":"Tikkende zolen van nette schoenen. Dat hoor je meteen.";
+  return v==="lang"?"Een lang figuur, een kop groter dan ik.":"Een klein figuur, kwam amper boven de heg uit.";
+}
+function traitMask(sus,t,v){let m=0;sus.forEach((s,i)=>{if(s.tr[t]===v)m|=1<<i});return m}
+function solve(c){ // alle daders die passen bij: bewijs waar, precies één getuige liegt
+  const out=[];for(let k=0;k<6;k++){if(c.ev.some(e=>!(e.mask>>k&1)))continue;let lies=0;c.wit.forEach(w=>{if(!(w.mask>>k&1))lies++});if(lies===1)out.push(k)}return out}
+function genCase(seed){
+  const r=rngOf(seed),pick=a=>a[Math.floor(r()*a.length)];
+  for(let tries=0;tries<4000;tries++){
+    const sus=shuffle(POOL,r).slice(0,6).map(p=>{const tr={};for(const t in TR)tr[t]=pick(TR[t]);return{name:p[0],role:p[1],tr}});
+    const k=Math.floor(r()*6),keys=shuffle(Object.keys(TR),r),evT=keys.slice(0,3),free=keys.slice(3);
+    const ev=evT.map(t=>{const v=sus[k].tr[t],x=evText(t,v);return{trait:t,val:v,mask:traitMask(sus,t,v),title:x[0],text:x[1]}});
+    let cand=63;ev.forEach(e=>cand&=e.mask);let n=0;for(let i=0;i<6;i++)n+=cand>>i&1;if(n<2||n>3)continue;
+    const liar=Math.floor(r()*5),wit=[],used={};let ok=true;
+    for(let i=0;i<5&&ok;i++){
+      if(i===liar){
+        if(r()<.5)wit.push({mask:63&~(1<<k),text:sus[k].name+" zat de hele avond bij mij. Die heeft het niet gedaan.",lie:true});
+        else{const t=pick(free),v=pick(TR[t].filter(x=>x!==sus[k].tr[t]));wit.push({mask:traitMask(sus,t,v),text:witText(t,v),lie:true})}
+      }else{
+        let done=false;
+        for(let a=0;a<20&&!done;a++){
+          if(r()<.55){const x=Math.floor(r()*6);if(x===k||used["a"+x])continue;used["a"+x]=1;wit.push({mask:63&~(1<<x),text:sus[x].name+" zat de hele avond bij mij. Die heeft het niet gedaan.",lie:false});done=true}
+          else{const t=pick(free);if(used[t])continue;used[t]=1;const v=sus[k].tr[t];wit.push({mask:traitMask(sus,t,v),text:witText(t,v),lie:false});done=true}
+        }
+        if(!done)ok=false;
+      }
+    }
+    if(!ok)continue;
+    const c={seed,victim:pick(VICTIMS),sus,killer:k,ev,wit,liar};
+    const s=solve(c);if(s.length===1&&s[0]===k)return c;
+  }
+  return null;
+}
+if(typeof module!=="undefined")module.exports={genCase,solve};
+</script>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const RANKS=[[0,"Aspirant"],[150,"Surveillant"],[400,"Rechercheur"],[800,"Inspecteur"],[1400,"Hoofdinspecteur"],[2200,"Commissaris"]];
+const SHADES=[["De Lantaarnopsteker",1,"Steekt nog elke avond lampen aan die er niet meer staan."],["De Melkboer",1,"Rammelt met flessen, altijd net om de hoek."],["De Nachtwaker",1,"Roept het uur om. Het klopt nooit."],["De Schillenboer",1,"Zoekt zijn paard. Al tachtig jaar."],["De Klokkenluider",1,"Luidt voor wie het niet horen wil."],["De Verdwenen Bruid",2,"Wacht bij elke kerk op iemand die niet kwam."],["De Kaartlegster",2,"Weet hoe jouw zaak afloopt en zwijgt."],["De Veerman",2,"Zet je over, ook waar geen water is."],["De Orgeldraaier",2,"Eén deuntje. Je raakt het niet meer kwijt."],["De Beul van de Markt",3,"Draagt zijn kap nog. Groet beleefd."],["De Witte Wieven",3,"Drie gedaanten in de mist, nooit tegelijk te zien."],["De Man Zonder Schaduw",3,"Je ziet hem alleen als de lantaarn flikkert."]];
+const RN=["","Gewoon","Zeldzaam","Legendarisch"];
+const TYPES={kerk:["de kerk","de koster"],bank:["de bank","de nachtwaker van de bank"],cafe:["het café","de barman"],hotel:["het hotel","de nachtportier"],apotheek:["de apotheek","de apothekersassistente"],halte:["de bushalte","de nachtbuschauffeur"],post:["de brievenbus","de postbode"],park:["het park","de hondenuitlater"],school:["de school","de conciërge"],winkel:["de winkel","de vakkenvuller"],bieb:["de bibliotheek","de bibliothecaresse"],kunst:["het kunstwerk","de straatmuzikant"],bankje:["het bankje","de slapeloze buurvrouw"],tank:["het tankstation","de pompbediende"],hoek:["de straathoek","de krantenbezorger"]};
+const PRI=["kerk","hotel","bank","apotheek","cafe","bieb","park","school","kunst","tank","winkel","halte","post","bankje","hoek"];
+const SPARE=["de straatveger","de nachtverpleger op weg naar huis","de visser met slapeloosheid","de bakkersknecht","de dakloze dichter"];
+let prof=LS.get("ss_prof",{xp:0,streak:0,last:"",solved:0,book:{}});
+let G=null,W=[],P={x:0,y:0,acc:0},V={s:.5,ox:0,oy:0,follow:true},sel=null,walkTo=null,watchId=null,R0=650,PAR=90,lastT=0,arrived=null;
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};
+const rank=xp=>{let i=0;RANKS.forEach((r,j)=>{if(xp>=r[0])i=j});return i};
+function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2600)}
+function buzz(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+let AC=null;function beep(f,d){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;o.type="triangle";g.gain.value=.08;g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+function show(id){["home","brief","play"].forEach(s=>$("#"+s).hidden=s!==id);if(id==="play")resize()}
+function sheet(html){$("#sheetBody").innerHTML=html;$("#sheet").hidden=false;$("#sheetBody").scrollTop=0}
+function closeSheet(){$("#sheet").hidden=true;mg.stop()}
+$("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet"&&!$("#sheet").dataset.lock)closeSheet()});
+
+/* ---------- startscherm ---------- */
+function home(){
+  const i=rank(prof.xp),nx=RANKS[i+1];
+  $("#pRank").textContent=RANKS[i][1];$("#pStreak").textContent=prof.streak;$("#pBook").textContent=Object.keys(prof.book).length+"/12";
+  $("#pXp").style.width=(nx?Math.round((prof.xp-RANKS[i][0])/(nx[0]-RANKS[i][0])*100):100)+"%";
+  $("#pNext").textContent=nx?prof.xp+" punten. Nog "+(nx[0]-prof.xp)+" tot "+nx[1]+".":prof.xp+" punten. Hoogste rang bereikt.";
+  $("#bResume").hidden=!LS.get("ss_game",null);
+  $("#bGps").textContent=prof.last===today()?"Speel de zaak van vandaag opnieuw":"Start de zaak van vandaag";
+  show("home");
+}
+$("#len").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;R0=+b.dataset.r;PAR=+b.dataset.par;document.querySelectorAll("#len button").forEach(x=>x.setAttribute("aria-pressed",x===b))});
+$("#bGps").onclick=()=>startGps(hashStr(today()));
+$("#bRandom").onclick=()=>startGps(Math.floor(Math.random()*4e9));
+$("#bDemo").onclick=()=>{const w=demoWorld();build(Math.floor(Math.random()*4e9),"demo",w.pois,w.ways,null)};
+$("#bResume").onclick=()=>{G=LS.get("ss_game",null);W=LS.get("ss_ways",[]);if(!G)return home();P={x:G.px||0,y:G.py||0,acc:0};enter()};
+$("#bBookHome").onclick=()=>bookSheet();
+
+/* ---------- wereld ophalen ---------- */
+function poiType(t){
+  if(!t)return null;const a=t.amenity,s=t.tourism;
+  if(a==="place_of_worship")return"kerk";if(a==="bank"||a==="atm")return"bank";if(/^(cafe|pub|bar|restaurant)$/.test(a||""))return"cafe";
+  if(a==="pharmacy")return"apotheek";if(a==="post_box")return"post";if(a==="library")return"bieb";if(a==="school")return"school";if(a==="fuel")return"tank";if(a==="bench")return"bankje";
+  if(s==="hotel")return"hotel";if(s==="artwork"||s==="museum")return"kunst";if(t.shop)return"winkel";if(t.highway==="bus_stop")return"halte";
+  if(t.leisure==="park"||t.leisure==="playground")return"park";return null;
+}
+function startGps(seed){
+  const st=$("#status");
+  if(!navigator.geolocation){st.textContent="Dit toestel geeft geen locatie door. Speel de oefenronde.";return}
+  st.textContent="Je locatie zoeken…";
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude,lon=pos.coords.longitude,R=R0;
+    st.textContent="De buurt in kaart brengen…";
+    const kx=111320*Math.cos(lat*Math.PI/180),ky=110540,xy=(la,lo)=>[(lo-lon)*kx,-(la-lat)*ky];
+    let pois=[],ways=[];
+    try{
+      const q=`[out:json][timeout:20];(nw(around:${R},${lat},${lon})[amenity~"^(place_of_worship|bank|atm|cafe|pub|bar|restaurant|pharmacy|post_box|library|school|fuel|bench)$"];nw(around:${R},${lat},${lon})[tourism~"^(hotel|artwork|museum)$"];nw(around:${R},${lat},${lon})[shop~"^(supermarket|bakery|convenience)$"];node(around:${R},${lat},${lon})[highway=bus_stop];nw(around:${R},${lat},${lon})[leisure~"^(park|playground)$"];way(around:${R+150},${lat},${lon})[highway~"^(residential|tertiary|secondary|primary|unclassified|living_street|pedestrian|footway|path|cycleway|service)$"];);out geom;`;
+      const ac=new AbortController(),to=setTimeout(()=>ac.abort(),25000);
+      const res=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(q),signal:ac.signal});clearTimeout(to);
+      const d=await res.json();
+      for(const e of d.elements||[]){
+        const ty=poiType(e.tags);
+        if(e.type==="way"&&e.geometry&&!ty&&e.tags&&e.tags.highway){const p=[];e.geometry.forEach(g=>{const c=xy(g.lat,g.lon);p.push(Math.round(c[0]),Math.round(c[1]))});const h=e.tags.highway;ways.push({p,w:/primary|secondary|tertiary/.test(h)?3:/footway|path|cycleway/.test(h)?1:2,n:e.tags.name||""})}
+        else if(ty){let la=e.lat,lo=e.lon;if(la==null&&e.geometry){la=0;lo=0;e.geometry.forEach(g=>{la+=g.lat;lo+=g.lon});la/=e.geometry.length;lo/=e.geometry.length}if(la==null)continue;const c=xy(la,lo);pois.push({x:c[0],y:c[1],type:ty,name:e.tags.name||""})}
+      }
+    }catch(e){toast("Geen kaartgegevens. De sporen liggen op loopafstand om je heen.")}
+    st.textContent="";build(seed,"gps",pois,ways,{lat,lon,kx,ky});
+  },err=>{st.textContent="Geen toegang tot je locatie. Open dit spel in de browser van je telefoon via een https-adres en sta locatie toe. Hier kun je de oefenronde spelen."},{enableHighAccuracy:true,timeout:20000});
+}
+function demoWorld(){
+  const r=rngOf(7),ways=[];
+  for(let g=-750;g<=750;g+=150){const a=[],b=[];for(let t=-750;t<=750;t+=150){a.push(t,Math.round(g+(r()-.5)*40));b.push(Math.round(g+(r()-.5)*40),t)}ways.push({p:a,w:g%450===0?3:2,n:""},{p:b,w:g%450===0?3:2,n:""})}
+  const L=[[-300,-150,"kerk","Sint-Bavokerk"],[150,-300,"cafe","Café De Gouden Leeuw"],[450,150,"hotel","Hotel Winterlicht"],[-150,300,"apotheek","Apotheek De Vijzel"],[300,300,"halte","Bushalte Marktplein"],[-450,150,"bank","Spaarbank Halvemaan"],[0,-450,"park","Stadspark"],[-150,-150,"post","Brievenbus Kerkstraat"],[150,150,"bieb","Bibliotheek"],[-300,450,"school","Basisschool De Wissel"],[300,-150,"winkel","Bakkerij Van Dam"],[0,550,"kunst","Beeld De Wachter"],[-550,-300,"tank","Tankstation Oostpoort"]];
+  return{ways,pois:L.map(l=>({x:l[0],y:l[1],type:l[2],name:l[3]}))};
+}
+function build(seed,mode,pois,ways,origin){
+  const c=genCase(seed);if(!c){toast("Deze zaak wil niet kloppen. Probeer een extra zaak.");return}
+  const r=rngOf(seed^0x9e3779b9),R=R0,far=(p,l,m)=>l.every(q=>Math.hypot(q.x-p.x,q.y-p.y)>=m);
+  let min=Math.max(90,R*.24);const ch=[],cand=shuffle(pois.filter(p=>{const d=Math.hypot(p.x,p.y);return d>70&&d<=R}),r).sort((a,b)=>PRI.indexOf(a.type)-PRI.indexOf(b.type));
+  for(let pass=0;pass<2&&ch.length<8;pass++)for(const p of cand){if(ch.length>=8)break;const n=ch.filter(q=>q.type===p.type).length;if(ch.includes(p)||n>pass||p.type==="bankje"&&pass===0&&cand.length>12)continue;if(far(p,ch,min))ch.push(p)}
+  const nodes=[];ways.forEach(w=>{for(let i=0;i<w.p.length;i+=2)nodes.push([w.p[i],w.p[i+1],w.n])});
+  for(let t=0;ch.length<8&&t<600;t++){
+    if(t%80===79)min*=.8;const a=r()*6.283,d=R*(.4+.55*r());let p={x:Math.cos(a)*d,y:Math.sin(a)*d,type:"hoek",name:""};
+    let b=null,bd=140;for(const n of nodes){const dd=Math.hypot(n[0]-p.x,n[1]-p.y);if(dd<bd){bd=dd;b=n}}if(b){p.x=b[0];p.y=b[1];if(b[2])p.name="Hoek "+b[2]}
+    if(far(p,ch,min))ch.push(p);
+  }
+  const order=shuffle(ch,r),usedP={},spare=SPARE.slice();
+  // plaats delict liefst park of rustige hoek
+  const pd=order.findIndex(p=>p.type==="park");if(pd>0)[order[0],order[pd]]=[order[pd],order[0]];
+  const st=order.map((p,i)=>{const T=TYPES[p.type];let persona=T[1];if(i>=3){if(usedP[persona])persona=spare.shift()||"een voorbijganger";usedP[persona]=1}
+    return{x:Math.round(p.x),y:Math.round(p.y),type:p.type,name:p.name||T[0].replace(/^(de|het) /,"").replace(/^./,m=>m.toUpperCase()),noun:T[0],kind:i<3?"ev":"wit",idx:i<3?i:i-3,persona:i>=3?persona:"",done:false}});
+  // zeldzame schimmen tussen de sporen
+  const rare=[];for(let i=0;i<3;i++){const a=st[Math.floor(r()*st.length)],b=st[Math.floor(r()*st.length)],f=.3+.4*r(),x=r(),tier=x<.08?3:x<.35?2:1,opts=SHADES.map((s,j)=>j).filter(j=>SHADES[j][1]===tier&&!rare.some(q=>q.id===j));
+    rare.push({x:Math.round(a.x+(b.x-a.x)*f+(r()-.5)*120),y:Math.round(a.y+(b.y-a.y)*f+(r()-.5)*120),id:opts[Math.floor(r()*opts.length)],done:false})}
+  G={mode,R,par:PAR,seed,c,st,rare,t0:0,dist:0,ms:[0,0,0,0,0,0],mw:[0,0,0,0,0],tips:[],tries:0,origin,px:0,py:0};
+  W=ways;P={x:0,y:0,acc:0};LS.set("ss_ways",W);
+  // briefing
+  const v=c.victim;$("#bfNo").textContent="Dossier "+String(seed%10000).padStart(4,"0")+(mode==="demo"?" · oefenronde":"");
+  $("#bfTitle").textContent="De dood van "+v[0];
+  $("#bfText").textContent=v[0]+", "+v[1]+", is om 23.40 uur dood gevonden bij "+st[0].noun+(st[0].name&&!/^(Kerk|Bank|Park|Straathoek)/.test(st[0].name)?" ("+st[0].name+")":"")+". "+v[2]+" Drie plekken bewaren bewijs. Op vijf plekken hangt een schim rond die iets zag. Precies één van die vijf liegt.";
+  $("#bfSus").innerHTML=c.sus.map(susCard).join("");show("brief");
+}
+function susCard(s,i){return `<div class="sus"><b>${esc(s.name)}</b><small>${esc(s.role)}, ${esc(vn(MOT[s.name][0]))}</small><div class="tags"><i>${ADJ[s.tr.jas]} jas</i><i>${s.tr.bril}</i><i>${s.tr.hand}handig</i><i>${s.tr.schoen}</i><i>${s.tr.lengte==="lang"?"lang":"klein"}</i></div></div>`}
+$("#bGo").onclick=()=>{G.t0=Date.now();save();enter()};
+function save(){if(G){G.px=P.x;G.py=P.y;LS.set("ss_game",G)}}
+function enter(){
+  show("play");V.follow=true;V.s=Math.min(innerWidth,innerHeight)/(G.R*2.3);sel=null;walkTo=null;arrived=null;$("#chip").hidden=true;
+  if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}
+  if(G.mode==="gps"&&navigator.geolocation){const o=G.origin;watchId=navigator.geolocation.watchPosition(p=>{const x=(p.coords.longitude-o.lon)*o.kx,y=-(p.coords.latitude-o.lat)*o.ky,d=Math.hypot(x-P.x,y-P.y);if(d>3&&d<80)G.dist+=d;if(d>3){P.x=x;P.y=y}P.acc=p.coords.accuracy||0},()=>{},{enableHighAccuracy:true,maximumAge:2000})}
+  try{navigator.wakeLock&&navigator.wakeLock.request("screen").catch(()=>{})}catch(e){}
+  if(G.mode==="demo")toast("Oefenronde: tik op de kaart om te lopen.");
+  requestAnimationFrame(loop);
+}
+
+/* ---------- kaart ---------- */
+const cv=$("#map"),cx=cv.getContext("2d");let dpr=1,cw=0,chh=0;
+function resize(){dpr=window.devicePixelRatio||1;cw=cv.clientWidth;chh=cv.clientHeight;cv.width=cw*dpr;cv.height=chh*dpr}
+addEventListener("resize",resize);
+const sx=x=>(x-(V.follow?P.x:V.ox))*V.s+cw/2,sy=y=>(y-(V.follow?P.y:V.oy))*V.s+chh/2;
+const dTo=t=>Math.hypot(t.x-P.x,t.y-P.y);
+const inRange=t=>dTo(t)<=Math.max(35,Math.min(P.acc||0,60))||G.force===t;
+function ghost(c,x,y,s,col,al){c.save();c.globalAlpha=al;
+  const h=c.createRadialGradient(x,y,s*.1,x,y,s*.85);h.addColorStop(0,"rgba(147,166,198,.28)");h.addColorStop(1,"rgba(147,166,198,0)");c.fillStyle=h;c.beginPath();c.arc(x,y,s*.85,0,7);c.fill();
+  c.fillStyle="rgba(4,7,12,.6)";c.beginPath();c.ellipse(x+s*.22,y+s*.52,s*.5,s*.09,-.12,0,7);c.fill();
+  c.fillStyle="#05080e";c.strokeStyle=col;c.lineWidth=Math.max(1,s*.035);c.lineJoin="round";
+  c.beginPath();c.moveTo(x-s*.09,y-s*.3);c.lineTo(x-s*.24,y-s*.24);c.lineTo(x-s*.3,y+s*.5);c.lineTo(x+s*.3,y+s*.5);c.lineTo(x+s*.24,y-s*.24);c.lineTo(x+s*.09,y-s*.3);c.closePath();c.fill();c.stroke();
+  c.beginPath();c.arc(x,y-s*.4,s*.13,0,7);c.fill();c.stroke();
+  c.beginPath();c.moveTo(x-s*.27,y-s*.47);c.lineTo(x+s*.27,y-s*.47);c.lineTo(x+s*.27,y-s*.52);c.lineTo(x+s*.14,y-s*.53);c.lineTo(x+s*.12,y-s*.7);c.lineTo(x-s*.12,y-s*.7);c.lineTo(x-s*.14,y-s*.53);c.lineTo(x-s*.27,y-s*.52);c.closePath();c.fill();c.stroke();
+  c.fillStyle=col;c.beginPath();c.arc(x-s*.05,y-s*.41,s*.022,0,7);c.arc(x+s*.05,y-s*.41,s*.022,0,7);c.fill();c.restore()}
+const still=matchMedia("(prefers-reduced-motion: reduce)").matches;
+function draw(t){
+  cx.setTransform(dpr,0,0,dpr,0,0);cx.fillStyle="#101a2b";cx.fillRect(0,0,cw,chh);
+  cx.lineCap="round";cx.lineJoin="round";
+  for(const w of W){cx.strokeStyle=w.w===1?"#22324f":"#2c3f62";cx.lineWidth=Math.max(1.2,(w.w===3?9:w.w===2?6:2.5)*V.s);cx.beginPath();for(let i=0;i<w.p.length;i+=2){const X=sx(w.p[i]),Y=sy(w.p[i+1]);i?cx.lineTo(X,Y):cx.moveTo(X,Y)}cx.stroke()}
+  // speelveld
+  cx.strokeStyle="rgba(147,166,198,.25)";cx.setLineDash([4,8]);cx.lineWidth=1;cx.beginPath();cx.arc(sx(0),sy(0),G.R*V.s,0,7);cx.stroke();cx.setLineDash([]);
+  const bob=still?0:Math.sin(t/500)*3;
+  cx.font="600 12px 'Barlow Condensed','Arial Narrow',sans-serif";cx.textAlign="center";
+  G.st.forEach((s,i)=>{const X=sx(s.x),Y=sy(s.y);
+    if(s.kind==="wit")ghost(cx,X,Y+(s.done?0:bob*.4),38,"#a6ead9",s.done?.3:.95);
+    else{cx.save();cx.globalAlpha=s.done?.35:1;cx.fillStyle="#f0a63a";cx.translate(X,Y);cx.rotate(Math.PI/4);cx.fillRect(-9,-9,18,18);cx.restore();if(!s.done&&!still){cx.strokeStyle="rgba(240,166,58,"+(.6-((t/1500)%1)*.6)+")";cx.lineWidth=2;cx.beginPath();cx.arc(X,Y,12+((t/1500)%1)*16,0,7);cx.stroke()}}
+    if(sel===s){cx.strokeStyle="#ece4d2";cx.lineWidth=2;cx.beginPath();cx.arc(X,Y,24,0,7);cx.stroke()}
+    cx.fillStyle=s.done?"#5f7090":"#ece4d2";cx.fillText((s.done?"✓ ":"")+s.name.toUpperCase().slice(0,26),X,Y+40)});
+  G.rare.forEach(q=>{if(q.done||dTo(q)>200)return;const X=sx(q.x),Y=sy(q.y),tier=SHADES[q.id][1];ghost(cx,X,Y-bob*.4,42,tier===3?"#f0a63a":tier===2?"#c9a6ea":"#ffffff",still?.8:.5+.4*Math.abs(Math.sin(t/300)));cx.fillStyle="#ece4d2";cx.fillText("???",X,Y+42);if(sel===q){cx.strokeStyle="#ece4d2";cx.lineWidth=2;cx.beginPath();cx.arc(X,Y,26,0,7);cx.stroke()}});
+  // speler
+  const X=sx(P.x),Y=sy(P.y);cx.fillStyle="rgba(240,166,58,.12)";cx.beginPath();cx.arc(X,Y,35*V.s,0,7);cx.fill();cx.strokeStyle="rgba(240,166,58,.5)";cx.lineWidth=1;cx.stroke();
+  cx.fillStyle="#f0a63a";cx.beginPath();cx.arc(X,Y,7,0,7);cx.fill();cx.strokeStyle="#101a2b";cx.lineWidth=2;cx.stroke();
+}
+function loop(t){
+  if($("#play").hidden||!G)return;
+  const dt=Math.min(.1,(t-lastT)/1000)||0;lastT=t;
+  if(G.mode==="demo"&&walkTo){const d=Math.hypot(walkTo.x-P.x,walkTo.y-P.y),step=90*dt;if(d<=step){P.x=walkTo.x;P.y=walkTo.y;G.dist+=d;walkTo=null}else{P.x+=(walkTo.x-P.x)/d*step;P.y+=(walkTo.y-P.y)/d*step;G.dist+=step}}
+  draw(t);
+  if(!loop.n||t-loop.n>500){loop.n=t;tick()}
+  requestAnimationFrame(loop);
+}
+function targets(){return G.st.filter(s=>!s.done).concat(G.rare.filter(q=>!q.done&&dTo(q)<=200))}
+function tick(){
+  const el=Math.floor((Date.now()-G.t0)/1000);$("#hT").textContent=Math.floor(el/60)+":"+String(el%60).padStart(2,"0");
+  $("#hS").textContent=G.st.filter(s=>s.done).length+"/8";$("#hG").textContent=G.rare.filter(q=>q.done).length+"/3";$("#hD").textContent=(G.dist/1000).toFixed(1).replace(".",",");
+  const ts=targets();let near=null,nd=1e9;ts.forEach(s=>{const d=dTo(s);if(d<nd){nd=d;near=s}});
+  const rr=G.rare.find(q=>!q.done&&dTo(q)<=320&&dTo(q)>200);
+  $("#radar").textContent=!near?"Alle sporen binnen. Tijd om te beschuldigen.":rr?"Er waart iets rond, vlakbij…":nd<60?"Heet. Nog "+Math.round(nd)+" m":nd<150?"Warm. Nog "+Math.round(nd)+" m":"Dichtstbijzijnde spoor: "+Math.round(nd)+" m";
+  const here=ts.find(inRange);
+  if(here&&arrived!==here&&$("#sheet").hidden){arrived=here;sel=here;buzz([80,60,80]);beep(660,.2)}
+  if(!here)arrived=null;
+  chip();if(el%10===0)save();
+}
+function chip(){
+  const c=$("#chip");if(!sel||sel.done){c.hidden=true;return}c.hidden=false;
+  const rare=sel.id!=null,d=dTo(sel),ok=inRange(sel);
+  $("#cName").textContent=rare?"Onbekende schim":sel.name;$("#cDist").textContent=Math.round(d)+" m";
+  $("#cHint").textContent=rare?"Flikkert en verdwijnt als je te lang wacht.":sel.kind==="ev"?"Hier ligt bewijs.":"In de schaduw staat iemand: "+sel.persona+".";
+  const b=$("#cAct");b.hidden=false;
+  if(ok)b.textContent=rare||sel.kind==="wit"?"Betrap de schaduw":"Onderzoek";
+  else if(G.mode==="demo")b.textContent="Loop hierheen";
+  else if(d<150)b.textContent="Gps hapert, ik sta er";
+  else b.hidden=true;
+}
+$("#cAct").onclick=()=>{if(!sel)return;if(inRange(sel))encounter(sel);else if(G.mode==="demo"){walkTo={x:sel.x,y:sel.y};V.follow=true}else if(dTo(sel)<150){G.force=sel;encounter(sel)}};
+let pd=null;
+cv.addEventListener("pointerdown",e=>{pd={x:e.clientX,y:e.clientY,ox:V.follow?P.x:V.ox,oy:V.follow?P.y:V.oy,drag:false};cv.setPointerCapture(e.pointerId)});
+cv.addEventListener("pointermove",e=>{if(!pd)return;const dx=e.clientX-pd.x,dy=e.clientY-pd.y;if(!pd.drag&&Math.hypot(dx,dy)>8)pd.drag=true;if(pd.drag){V.follow=false;V.ox=pd.ox-dx/V.s;V.oy=pd.oy-dy/V.s}});
+cv.addEventListener("pointerup",e=>{if(!pd)return;if(!pd.drag){const b=cv.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top;let hit=null;targets().concat(G.st.filter(s=>s.done)).forEach(s=>{if(Math.hypot(sx(s.x)-mx,sy(s.y)-my)<30)hit=s});
+  if(hit&&!hit.done){sel=hit;chip()}else if(G.mode==="demo"){const wx=(mx-cw/2)/V.s+(V.follow?P.x:V.ox),wy=(my-chh/2)/V.s+(V.follow?P.y:V.oy);walkTo={x:wx,y:wy};sel=null;V.follow=true;chip()}else{sel=null;chip()}}pd=null});
+$("#zIn").onclick=()=>V.s=Math.min(4,V.s*1.4);$("#zOut").onclick=()=>V.s=Math.max(.1,V.s/1.4);$("#zMe").onclick=()=>V.follow=true;
+
+/* ---------- ontmoeting met minispel ---------- */
+const mg={raf:0,tm:[],stop(){cancelAnimationFrame(this.raf);this.raf=0;this.tm.forEach(clearTimeout);this.tm=[]}};
+const INFO={
+  lamp:["Iemand houdt zich schuil","Schijn met je zaklamp door het donker. Houd het licht op de schaduw tot de cirkel rond is. Drie keer."],
+  seq:["De schaduw seint met lantaarns","Kijk naar de volgorde en tik die na. Elke ronde komt er één bij."],
+  code:["Een cijferslot","Kraak de code: drie verschillende cijfers van 1 tot 5. Groen staat goed. Geel zit erin, maar op een andere plek."],
+  cipher:["Een briefje in geheimschrift","Elke letter is evenveel plaatsen opgeschoven. Draai tot er een woord staat."],
+  radio:["Gefluister op de korte golf","Schuif tot de stem helder is en houd de knop daar stil."],
+  tiles:["Een verscheurde foto","Tik twee stukken aan om ze te wisselen tot het beeld klopt."],
+  dust:["Er ligt hier iets","Veeg het stof en de bladeren weg."]};
+const PLAY={
+  lamp(o){const c=o.canvas(),g=c.getContext("2d");let fx,fy,vx,vy,lx=130,ly=210,hold=0,hits=0,last=0;
+    const place=()=>{fx=40+Math.random()*180;fy=55+Math.random()*150;const a=Math.random()*6.28,sp=o.rare?24:9;vx=Math.cos(a)*sp;vy=Math.sin(a)*sp};place();
+    const crates=[0,1,2,3,4,5,6].map(()=>[Math.random()*230,Math.random()*230,20+Math.random()*40,20+Math.random()*50]);
+    const mv=e=>{const q=o.at(e,c);lx=q[0];ly=q[1]};c.onpointerdown=mv;c.onpointermove=mv;
+    const f=ts=>{const dt=Math.min(.1,(ts-last)/1000)||0;last=ts;fx+=vx*dt;fy+=vy*dt;if(fx<30||fx>230)vx=-vx;if(fy<50||fy>220)vy=-vy;
+      g.fillStyle="#2a3550";g.fillRect(0,0,260,260);g.fillStyle="#1c2740";crates.forEach(r=>g.fillRect(r[0],r[1],r[2],r[3]));
+      ghost(g,fx,fy,64,o.col,1);
+      const gr=g.createRadialGradient(lx,ly,8,lx,ly,62);gr.addColorStop(0,"rgba(5,8,14,0)");gr.addColorStop(1,"rgba(5,8,14,1)");g.fillStyle=gr;g.fillRect(0,0,260,260);
+      const near=Math.hypot(lx-fx,ly-fy)<28;hold=near?hold+dt:0;
+      if(near){g.strokeStyle="#f0a63a";g.lineWidth=3;g.beginPath();g.arc(fx,fy,44,-1.57,-1.57+6.283*Math.min(1,hold/.6));g.stroke()}
+      if(hold>=.6){hits++;hold=0;beep(500+hits*120,.12);buzz(40);if(hits>=3)return o.done();place()}
+      g.fillStyle="#ece4d2";g.font="16px 'Special Elite',monospace";g.textAlign="center";g.fillText(hits+" / 3",130,252);
+      mg.raf=requestAnimationFrame(f)};mg.raf=requestAnimationFrame(f)},
+  seq(o){o.box.innerHTML='<div class="lans">'+[0,1,2,3].map(i=>'<button type="button" class="lan" data-i="'+i+'" aria-label="Lantaarn '+(i+1)+'"></button>').join("")+'</div><p class="note" id="sqS" style="color:#6a6250"></p>';
+    const L=[].slice.call(o.box.querySelectorAll(".lan")),S=[0,1,2,3,4].map(()=>Math.floor(Math.random()*4)),st=$("#sqS");let pos=0,busy=true,len=3;
+    const lit=(i,ms)=>{L[i].classList.add("on");beep(330+i*110,.18);mg.tm.push(setTimeout(()=>L[i].classList.remove("on"),ms))};
+    const play=()=>{busy=true;pos=0;st.textContent="Kijk…";for(let k=0;k<len;k++)mg.tm.push(setTimeout(()=>lit(S[k],350),600+k*600));mg.tm.push(setTimeout(()=>{busy=false;st.textContent="Jouw beurt: "+len+" lantaarns"},600+len*600))};
+    o.box.firstChild.onclick=e=>{const b=e.target.closest(".lan");if(!b||busy)return;const i=+b.dataset.i;lit(i,200);
+      if(i!==S[pos]){busy=true;st.textContent="Fout. Kijk opnieuw.";buzz(150);mg.tm.push(setTimeout(play,900));return}
+      pos++;if(pos>=len){if(len>=5)return o.done();len++;busy=true;st.textContent="Goed. Eén erbij.";mg.tm.push(setTimeout(play,700))}};
+    play()},
+  code(o){const sec=shuffle([1,2,3,4,5],Math.random).slice(0,3),cur=[1,1,1];
+    o.box.innerHTML='<div class="dig">'+[0,1,2].map(i=>'<button type="button" data-d="'+i+'" aria-label="Cijfer '+(i+1)+'">1</button>').join("")+'</div><button type="button" class="btn" id="cdTry">Probeer</button><div class="hist" id="cdH"></div>';
+    o.box.querySelector(".dig").onclick=e=>{const b=e.target.closest("button");if(!b)return;const i=+b.dataset.d;cur[i]=cur[i]%5+1;b.textContent=cur[i];beep(300,.05)};
+    $("#cdTry").onclick=()=>{const fb=cur.map((d,i)=>d===sec[i]?2:sec.indexOf(d)>=0?1:0);$("#cdH").insertAdjacentHTML("afterbegin","<div>"+cur.map((d,i)=>'<span class="g'+fb[i]+'">'+d+"</span>").join("")+"</div>");if(fb.every(x=>x===2))o.done();else beep(200,.1)}},
+  cipher(o){const ws=["ALIBI","MOTIEF","GETUIGE","LEUGEN","SCHULD","DADER","BEWIJS","WRAAK","ERFENIS","CHANTAGE"],w=ws[Math.floor(Math.random()*ws.length)];let k=3+Math.floor(Math.random()*20);
+    const enc=s=>w.replace(/[A-Z]/g,ch=>String.fromCharCode((ch.charCodeAt(0)-65+s)%26+65));
+    o.box.innerHTML='<div class="big" id="cpT"></div><div class="rowb"><button type="button" class="btn ghost dk" id="cpL">◀ Draai</button><button type="button" class="btn ghost dk" id="cpR">Draai ▶</button></div><button type="button" class="btn" id="cpOk">Dit is het woord</button>';
+    const up=()=>{$("#cpT").textContent=enc(k)};up();
+    $("#cpL").onclick=()=>{k=(k+25)%26;up();beep(260,.04)};$("#cpR").onclick=()=>{k=(k+1)%26;up();beep(300,.04)};
+    $("#cpOk").onclick=()=>{if(k===0)o.done();else{beep(160,.2);buzz(120);toast("Dat is geen woord. Draai verder.")}}},
+  radio(o){const msg="IK HEB ALLES GEZIEN BIJ DE LANTAARN",noise="#%&@/=*?",tg=8+Math.floor(Math.random()*84);let hold=0,last=0,acc=1;
+    o.box.innerHTML='<div class="big" id="rdT" style="font-size:18px;letter-spacing:.08em"></div><input type="range" id="rdR" min="0" max="100" value="'+(tg>50?4:96)+'" aria-label="Frequentie"><div class="xp" style="width:100%;background:#c9bfa6"><i id="rdB" style="width:0%"></i></div>';
+    const f=ts=>{const dt=Math.min(.2,(ts-last)/1000)||0;last=ts;acc+=dt;const d=Math.abs(+$("#rdR").value-tg);hold=d<=2?hold+dt:0;
+      if(acc>.1){acc=0;const p=d<=2?0:Math.min(1,d/22);$("#rdT").textContent=msg.replace(/[A-Z]/g,ch=>Math.random()<p?noise[Math.floor(Math.random()*8)]:ch);$("#rdB").style.width=Math.round((1-p)*100)+"%"}
+      if(hold>=1.2)return o.done();mg.raf=requestAnimationFrame(f)};mg.raf=requestAnimationFrame(f)},
+  tiles(o){const c=o.canvas(),g=c.getContext("2d"),src=document.createElement("canvas");src.width=src.height=260;const s=src.getContext("2d");
+    s.fillStyle="#ece4d2";s.fillRect(0,0,260,260);s.strokeStyle="#1b2233";s.lineWidth=3;s.strokeRect(12,12,236,236);
+    s.fillStyle="#d8503f";s.save();s.translate(200,60);s.rotate(.6);s.fillRect(-22,-22,44,44);s.restore();
+    s.beginPath();s.arc(60,66,26,0,7);s.lineWidth=4;s.stroke();
+    s.fillStyle="#1b2233";s.textAlign="center";s.font="28px 'Special Elite',monospace";s.fillText(G.c.ev[o.t.idx].title,130,130);s.font="15px 'Special Elite',monospace";s.fillText("BEWIJSSTUK "+(o.t.idx+1),130,156);
+    s.lineWidth=1;for(let i=0;i<8;i++){s.beginPath();s.moveTo(30,180+i*8);s.lineTo(70+((i*53)%160),180+i*8);s.stroke()}
+    let p;do{p=shuffle([0,1,2,3,4,5,6,7,8],Math.random)}while(p.every((v,i)=>v===i));let pick=-1,fin=false;const T=260/3;
+    const dr=()=>{g.clearRect(0,0,260,260);p.forEach((v,i)=>{g.drawImage(src,(v%3)*T,Math.floor(v/3)*T,T,T,(i%3)*T,Math.floor(i/3)*T,T,T);g.strokeStyle="#101a2b";g.lineWidth=2;g.strokeRect((i%3)*T+1,Math.floor(i/3)*T+1,T-2,T-2)});
+      if(pick>=0){g.strokeStyle="#f0a63a";g.lineWidth=5;g.strokeRect((pick%3)*T+3,Math.floor(pick/3)*T+3,T-6,T-6)}};dr();
+    c.onpointerdown=e=>{if(fin)return;const q=o.at(e,c),i=Math.min(2,Math.floor(q[0]/T))+3*Math.min(2,Math.floor(q[1]/T));
+      if(pick<0)pick=i;else{const a=p[pick];p[pick]=p[i];p[i]=a;pick=-1;beep(300,.05)}dr();
+      if(p.every((v,k)=>v===k)){fin=true;mg.tm.push(setTimeout(o.done,600))}}},
+  dust(o){o.box.innerHTML='<div class="dustw"><div>'+esc(G.c.ev[o.t.idx].title)+'</div><canvas width="260" height="260"></canvas></div>';const c=o.box.querySelector("canvas"),g=c.getContext("2d");
+    g.fillStyle="#3a4a66";g.fillRect(0,0,260,260);for(let i=0;i<500;i++){g.fillStyle=i%2?"#4a5b79":"#2d3b55";g.fillRect(Math.random()*260,Math.random()*260,6,3)}
+    g.globalCompositeOperation="destination-out";const cells=new Set();let down=false;
+    const rub=e=>{if(!down)return;const q=o.at(e,c);g.beginPath();g.arc(q[0],q[1],26,0,7);g.fill();cells.add(Math.floor(q[0]/33)+"_"+Math.floor(q[1]/33));if(cells.size>=34){c.onpointermove=null;o.done()}};
+    c.onpointerdown=e=>{down=true;rub(e)};c.onpointermove=rub;c.onpointerup=()=>{down=false}}
+};
+function puzzle(t){
+  const rare=t.id!=null,wit=rare||t.kind==="wit";walkTo=null;
+  const key=rare?"lamp":wit?["seq","code","cipher","radio","lamp"][(t.idx+G.seed)%5]:["tiles","dust","code"][(t.idx+G.seed)%3],I=INFO[key];
+  sheet('<div class="eyebrow">'+(rare?"Een zeldzame schaduw":esc(t.name)+(wit?" · "+esc(t.persona):" · bewijs"))+'</div><h2>'+I[0]+'</h2><p id="mgHint">'+I[1]+'</p><div id="mgbox"></div><div id="mgOut"></div><button type="button" class="btn ghost dk" id="mgSkip">Later terugkomen</button>');
+  $("#sheet").dataset.lock="1";$("#sheetBody").onclick=null;
+  $("#mgSkip").onclick=()=>{delete $("#sheet").dataset.lock;closeSheet()};
+  const box=$("#mgbox");let fin=false;
+  const tier=rare?SHADES[t.id][1]:0,col=tier===3?"#f0a63a":tier===2?"#c9a6ea":tier===1?"#ffffff":"#a6ead9";
+  const done=()=>{if(fin)return;fin=true;mg.stop();delete $("#sheet").dataset.lock;$("#mgSkip").hidden=true;buzz(200);beep(880,.35);t.done=true;reveal(t)};
+  const canvas=()=>{box.innerHTML='<canvas class="sq" width="260" height="260"></canvas>';return box.firstChild};
+  const at=(e,c)=>{const b=c.getBoundingClientRect();return[(e.clientX-b.left)/b.width*260,(e.clientY-b.top)/b.height*260]};
+  PLAY[key]({t:t,box:box,done:done,canvas:canvas,at:at,rare:rare,col:col});
+}
+/* ---------- verhaal ---------- */
+const MOT={
+"Ilse Verbrugge":["stelde het testament van {V} op en weet als enige wat erin staat","Het testament was vorige week veranderd. Na twintig jaar trouwe dienst stond ik er niet meer in."],
+"Ruben Achterberg":["stond voor een flink bedrag in het krijt bij {V}","{V} wilde de slagerij van mijn vader laten veilen. Ik zag geen uitweg meer."],
+"Mirjam de Wolf":["hoorde van {V} dat het koor de repetitiezaal kwijtraakt","Dertig jaar muziek, weggestreept met één handtekening van {V}. Ik wilde alleen praten."],
+"Tobias Koolen":["reed {V} elke week en hoorde op de achterbank te veel","Ik wist wat {V} verborg en vroeg er geld voor. Toen draaide het om en was ik degene die bang moest zijn."],
+"Fenna Oosterhout":["kreeg ruzie met {V} over een vergiftigde hond","{V} had mijn praktijk zwartgemaakt in het hele dorp. Die avond liep het uit de hand."],
+"Hendrik Maas":["ziet {V} als de reden dat de kroeg leegloopt","{V} wilde mijn vergunning laten intrekken. De kroeg is alles wat ik heb."],
+"Saar Lindeman":["schreef een artikel over {V} dat nooit verscheen","{V} had mijn bron gekocht en mijn verhaal laten verdwijnen. Ik ging verhaal halen."],
+"Otto Pruim":["verkocht {V} een erfstuk dat later vals bleek","{V} dreigde met die vervalsing naar de politie te gaan. Dat kon ik niet laten gebeuren."],
+"Noor Haverkamp":["tekende een vergunning waar {V} alles van wist","{V} had de papieren van die vergunning. Eén telefoontje en mijn loopbaan was voorbij."],
+"Gijs Terlouw":["heeft al jaren ruzie met {V} over een schutting","Het ging al lang niet meer om die schutting. {V} lachte me uit, en toen knapte er iets."]};
+const INTRO={"de koster":"Ik sloot net de zijdeur af toen ik het hoorde.","de nachtwaker van de bank":"Ik zit hier elke nacht. Ik zie alles wat langs die automaat loopt.","de barman":"De laatste ronde was net geweest. Ik stond glazen te spoelen bij het raam.","de nachtportier":"Na elven komt hier niemand binnen zonder dat ik het zie.","de apothekersassistente":"Ik had avonddienst en stond buiten even te roken.","de nachtbuschauffeur":"Ik had tien minuten pauze. Motor uit, raam open.","de postbode":"Ik leeg die bus altijd als laatste, vlak voor middernacht.","de hondenuitlater":"De hond wilde niet verder. Die rook het eerder dan ik.","de conciërge":"Ik kwam het alarm controleren. Vals alarm, dacht ik eerst.","de vakkenvuller":"Ik stond achter bij de containers karton te stampen.","de bibliothecaresse":"Ik haalde de laat ingeleverde boeken uit de bus bij de deur.","de straatmuzikant":"Ik zat mijn kleingeld te tellen onder de lantaarn.","de slapeloze buurvrouw":"Ik slaap al jaren niet. Ik zit bij het raam, met thee.","de pompbediende":"Rustige nacht. Eén klant in een uur. Dus ik keek naar buiten.","de krantenbezorger":"Ik was vroeg. Of laat, hoe je het bekijkt.","de straatveger":"Ik veeg hier voor de zon opkomt. Dan zie je dingen.","de nachtverpleger op weg naar huis":"Ik kwam van mijn dienst en liep binnendoor.","de visser met slapeloosheid":"Ik liep met mijn hengel naar het water.","de bakkersknecht":"Ik begin om drie uur. Ik was onderweg naar de oven.","de dakloze dichter":"Ik lag in het portiek. Niemand ziet mij, maar ik zie iedereen."};
+const FRAG=["19.10 uur. {V} eet alleen en laat het halve bord staan. Op tafel ligt een envelop zonder afzender.","20.00 uur. Drie gemiste oproepen op de telefoon van {V}. Alle drie van een nummer uit de buurt.","20.45 uur. {V} haalt iets uit de kluis en stopt het in een binnenzak.","21.30 uur. Een buurman ziet {V} de deur uit gaan. Geen jas, wel haast.","22.15 uur. {V} staat te praten met iemand die in de schaduw blijft.","22.50 uur. Stemmen, steeds harder. Iemand roept: dat had je me beloofd.","23.20 uur. {V} loopt alleen verder en kijkt steeds achterom.","23.40 uur. Een doffe klap. Daarna voetstappen die zich weghaasten. De envelop is nooit teruggevonden."];
+const vn=s=>s.replace(/\{V\}/g,G.c.victim[0]);
+/* ---------- camera: de schaduw in je eigen straat ---------- */
+function encounter(t){
+  const wit=t.id!=null||t.kind==="wit",can=navigator.mediaDevices&&navigator.mediaDevices.getUserMedia;walkTo=null;
+  if(!wit||!can||G.cam==="off")return puzzle(t);
+  if(G.cam==="on")return startAR(t);
+  sheet('<div class="eyebrow">Er staat hier iemand</div><h2>Kijk om je heen</h2><p>Met je camera zie je de schaduw in je eigen straat staan. Je draait rond tot je hem vindt. Het beeld blijft op je telefoon en wordt niet opgeslagen of verstuurd.</p><button type="button" class="btn" id="arYes">Camera aanzetten</button><button type="button" class="btn ghost dk" id="arNo">Zonder camera spelen</button>');
+  $("#sheetBody").onclick=null;
+  $("#arYes").onclick=()=>startAR(t);$("#arNo").onclick=()=>{G.cam="off";puzzle(t)};
+}
+async function startAR(t){
+  let stream;
+  try{
+    if(typeof DeviceOrientationEvent!=="undefined"&&DeviceOrientationEvent.requestPermission){try{await DeviceOrientationEvent.requestPermission()}catch(e){}}
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+  }catch(e){G.cam="off";toast("Geen camera beschikbaar. We spelen zonder.");return puzzle(t)}
+  G.cam="on";closeSheet();
+  const ar=$("#ar"),v=$("#arV"),c=$("#arC"),g=c.getContext("2d");v.srcObject=stream;v.play().catch(()=>{});ar.hidden=false;
+  const w=ar.clientWidth,h=ar.clientHeight;c.width=w;c.height=h;
+  let head=0,h0=null,beta=80,manual=0,hold=0,last=0,raf=0,got=false,px=null,over=false;
+  const off=(Math.random()<.5?-1:1)*(70+Math.random()*100);
+  const tier=t.id!=null?SHADES[t.id][1]:0,col=tier===3?"#f0a63a":tier===2?"#c9a6ea":tier===1?"#ffffff":"#a6ead9";
+  const onO=e=>{const a=e.webkitCompassHeading!=null?e.webkitCompassHeading:(e.alpha!=null?360-e.alpha:null);if(a==null)return;got=true;head=a;if(h0==null)h0=a;if(e.beta!=null)beta=e.beta};
+  addEventListener("deviceorientation",onO);
+  c.onpointerdown=e=>{px=e.clientX};c.onpointermove=e=>{if(px!=null&&!got){manual-=(e.clientX-px)*.25;px=e.clientX}};c.onpointerup=()=>{px=null};
+  const end=ok=>{if(over)return;over=true;cancelAnimationFrame(raf);removeEventListener("deviceorientation",onO);stream.getTracks().forEach(x=>x.stop());v.srcObject=null;ar.hidden=true;if(ok){buzz(120);beep(700,.2);puzzle(t)}};
+  $("#arX").onclick=()=>end(false);
+  const f=ts=>{const dt=Math.min(.1,(ts-last)/1000)||0;last=ts;
+    const cur=got?head-h0:manual,d=(((off-cur)%360)+540)%360-180;
+    g.clearRect(0,0,w,h);g.fillStyle="rgba(10,16,30,.38)";g.fillRect(0,0,w,h);
+    const s=Math.min(w,h)*.8,x=w/2+d/60*w,y=h*.56+(got?Math.max(-h*.3,Math.min(h*.3,(beta-80)*h/100)):0);
+    if(Math.abs(d)<55)ghost(g,x,y,s,col,.94);
+    const on=Math.abs(d)<9;hold=on?hold+dt:0;
+    g.strokeStyle="rgba(236,228,210,.7)";g.lineWidth=2;g.beginPath();g.arc(w/2,h/2,46,0,7);g.stroke();
+    if(on){g.strokeStyle="#f0a63a";g.lineWidth=5;g.beginPath();g.arc(w/2,h/2,46,-1.57,-1.57+6.283*Math.min(1,hold));g.stroke()}
+    g.font="20px 'Special Elite',monospace";g.textAlign="center";g.fillStyle="#ece4d2";g.shadowColor="#000";g.shadowBlur=8;
+    g.fillText(on?"Niet bewegen…":d>0?"Draai naar rechts ▶":"◀ Draai naar links",w/2,h*.16);
+    if(!got){g.font="14px sans-serif";g.fillText("Sleep over het beeld om rond te kijken",w/2,h*.16+26)}
+    g.shadowBlur=0;
+    if(hold>=1)return end(true);
+    raf=requestAnimationFrame(f)};
+  raf=requestAnimationFrame(f);
+}
+function reveal(t){
+  let h="";
+  if(t.id!=null){const s=SHADES[t.id],isNew=!prof.book[t.id];prof.book[t.id]=(prof.book[t.id]||0)+1;prof.xp+=20*s[1];LS.set("ss_prof",prof);
+    const opts=G.c.wit.map((w,i)=>i).filter(i=>!G.c.wit[i].lie&&!G.tips.includes(i)),ti=opts.length?opts[Math.floor(Math.random()*opts.length)]:-1;let tip="";
+    if(ti>=0){G.tips.push(ti);const p=G.st.find(x=>x.kind==="wit"&&x.idx===ti).persona;tip=`<div class="clue"><em>Tip van de schim</em>Geloof ${esc(p)}. Die spreekt de waarheid.</div>`}
+    h=`<div class="eyebrow r${s[1]}">${RN[s[1]]}${isNew?" · nieuw in je boek":""}</div><h2>${esc(s[0])}</h2><p>${esc(s[2])}</p>${tip}<p class="note" style="color:#6a6250">+${20*s[1]} punten</p>`;
+  }else if(t.kind==="ev"){const e=G.c.ev[t.idx];h=`<div class="clue"><em>Bewijs · altijd waar</em><b>${esc(e.title)}</b>${esc(e.text)}</div>`}
+  else{const w=G.c.wit[t.idx];h=`<div class="clue wit"><em>${esc(t.persona)} · getuige</em>„${esc(INTRO[t.persona]||"Ik kwam hier toevallig langs.")} ${esc(w.text)}”</div><p class="note" style="color:#6a6250">Eén van de vijf getuigen liegt. Deze ook?</p>`}
+  if(t.id==null){const n=G.st.filter(x=>x.done).length;h+=`<div class="clue" style="border-color:#6a6250;margin-top:8px"><em>De laatste avond · ${n}/8</em>${esc(vn(FRAG[n-1]))}</div>`}
+  $("#mgHint").hidden=true;$("#mgbox").hidden=true;
+  $("#mgOut").innerHTML=h+`<button class="btn" id="mgOk" style="margin-top:12px">Verder</button>`;
+  $("#mgOk").onclick=()=>{closeSheet();sel=null;save();if(G.st.every(s=>s.done))toast("Alle acht sporen binnen. Open je notitieboek.")};
+  save();
+}
+
+/* ---------- notitieboek ---------- */
+function noteSheet(tab){
+  const c=G.c,found=G.st.filter(s=>s.done);
+  let body;
+  if(tab==="v"){const n=found.length;body=`<p>${esc(c.victim[0])}, ${esc(c.victim[1])}. ${esc(c.victim[2])}</p><div class="eyebrow">De laatste avond · ${n}/8</div><div class="list">`+(FRAG.slice(0,n).map(x=>`<div class="clue" style="border-color:#6a6250">${esc(vn(x))}</div>`).join("")||`<p class="note" style="color:#6a6250">Elk spoor dat je vindt, geeft een stuk van de avond terug.</p>`)+`</div>`}
+  else if(tab==="s")body=`<p class="note" style="color:#6a6250">Tik op een verdachte om die weg te strepen.</p><div class="list">`+c.sus.map((s,i)=>susCard(s,i).replace('<div class="sus"',`<button type="button" data-s="${i}" class="sus${G.ms[i]?" out":""}"`).replace(/<\/div>$/,"</button>")).join("")+`</div>`;
+  else{const ev=found.filter(s=>s.kind==="ev"),wi=found.filter(s=>s.kind==="wit");
+    body=`<div class="eyebrow">Bewijs ${ev.length}/3 · altijd waar</div><div class="list">`+(ev.map(s=>`<div class="clue"><b>${esc(c.ev[s.idx].title)}</b>${esc(c.ev[s.idx].text)}</div>`).join("")||`<p class="note" style="color:#6a6250">Nog niets gevonden.</p>`)+`</div>
+    <div class="eyebrow">Getuigen ${wi.length}/5 · één liegt</div><p class="note" style="color:#6a6250">Tik om te markeren als waar of leugen.</p><div class="list">`+(wi.map(s=>`<button type="button" data-w="${s.idx}" class="clue wit m${G.mw[s.idx]}"><em>${esc(s.persona)}${G.tips.includes(s.idx)?" · spreekt de waarheid (tip)":""}${G.mw[s.idx]===1?" · waar":G.mw[s.idx]===2?" · leugen":""}</em>„${esc(c.wit[s.idx].text)}”</button>`).join("")||`<p class="note" style="color:#6a6250">Nog niemand gesproken.</p>`)+`</div>`}
+  sheet(`<h2>Notitieboek</h2><div class="tabs"><button type="button" data-t="c" aria-selected="${tab==="c"}">Sporen</button><button type="button" data-t="s" aria-selected="${tab==="s"}">Verdachten</button><button type="button" data-t="v" aria-selected="${tab==="v"}">Verhaal</button></div>${body}<button class="btn ghost" style="color:#1b2233;border-color:#c9bfa6" id="shX">Terug naar de kaart</button>`);
+  $("#sheetBody").onclick=e=>{const b=e.target.closest("button");if(!b)return;if(b.dataset.t)noteSheet(b.dataset.t);else if(b.dataset.s){G.ms[b.dataset.s]^=1;noteSheet("s")}else if(b.dataset.w){G.mw[b.dataset.w]=(G.mw[b.dataset.w]+1)%3;noteSheet("c")}else if(b.id==="shX"){closeSheet()}};
+}
+$("#bNote").onclick=()=>noteSheet("c");
+function bookSheet(){
+  sheet(`<h2>Schimmenboek</h2><p class="note" style="color:#6a6250">${Object.keys(prof.book).length} van 12 gevangen. Elke zaak laat er drie rondwaren.</p><div class="book">`+SHADES.map((s,i)=>prof.book[i]?`<div><b>${esc(s[0])}</b><span class="r${s[1]}">${RN[s[1]]} · ${prof.book[i]}×</span><span>${esc(s[2])}</span></div>`:`<div class="no"><b>???</b><span class="r${s[1]}">${RN[s[1]]}</span></div>`).join("")+`</div><button class="btn ghost" style="color:#1b2233;border-color:#c9bfa6" id="shX">Sluiten</button>`);
+  $("#sheetBody").onclick=e=>{if(e.target.id==="shX")closeSheet()};
+}
+$("#bBook").onclick=bookSheet;
+
+/* ---------- beschuldigen ---------- */
+function accSheet(ps,pw){
+  const c=G.c,left=G.st.filter(s=>!s.done).length,wi=G.st.filter(s=>s.kind==="wit"&&s.done);
+  sheet(`<h2>Wie heeft het gedaan?</h2>${left?`<p style="color:#a5392c">Je mist nog ${left} ${left===1?"spoor":"sporen"}. Beschuldigen kan, maar je gokt.</p>`:""}
+  <div class="grid2">`+c.sus.map((s,i)=>`<button type="button" data-s="${i}" class="sus${ps===i?" pick":""}${G.ms[i]?" out":""}"><b>${esc(s.name)}</b><small>${esc(s.role)}</small></button>`).join("")+`</div>
+  <div class="eyebrow">En wie loog? Goed voor een extra ster</div><div class="list">`+(wi.map(s=>`<button type="button" data-w="${s.idx}" class="sus${pw===s.idx?" pick":""}"><b>${esc(s.persona)}</b></button>`).join("")||`<p class="note" style="color:#6a6250">Je sprak nog geen getuigen.</p>`)+`</div>
+  <button class="btn red" id="accGo" ${ps==null?"disabled":""}>Beschuldig</button><button class="btn ghost" style="color:#1b2233;border-color:#c9bfa6" id="shX">Ik zoek nog even verder</button>`);
+  $("#sheetBody").onclick=e=>{const b=e.target.closest("button");if(!b)return;if(b.dataset.s)accSheet(+b.dataset.s,pw);else if(b.dataset.w)accSheet(ps,pw===+b.dataset.w?null:+b.dataset.w);else if(b.id==="shX")closeSheet();else if(b.id==="accGo")verdict(ps,pw)};
+}
+$("#bAcc").onclick=()=>accSheet(null,null);
+function verdict(ps,pw){
+  const c=G.c;G.tries++;
+  if(ps!==c.killer){buzz([200,100,200]);beep(140,.5);save();
+    sheet(`<div class="eyebrow">Mis</div><h2>${esc(c.sus[ps].name)} heeft een sluitend alibi</h2><p>De echte dader loopt nog rond. Kijk opnieuw naar wie er gelogen kan hebben. Een foute beschuldiging kost je een ster.</p><button class="btn" id="shX">Terug naar de sporen</button>`);
+    $("#sheetBody").onclick=e=>{if(e.target.id==="shX")closeSheet()};return}
+  const min=(Date.now()-G.t0)/60000,s2=pw===c.liar,s3=G.tries===1&&min<=G.par,stars=1+(s2?1:0)+(s3?1:0),xp=100+stars*50,before=rank(prof.xp);
+  const t=today(),y=new Date(Date.now()-864e5),ys=y.getFullYear()+"-"+(y.getMonth()+1)+"-"+y.getDate();
+  if(G.mode==="gps"){if(prof.last!==t){prof.streak=prof.last===ys?prof.streak+1:1;prof.last=t}prof.solved++}
+  prof.xp+=xp;LS.set("ss_prof",prof);LS.del("ss_game");buzz([100,50,100,50,300]);beep(660,.2);setTimeout(()=>beep(990,.4),200);
+  let cand=63;c.ev.forEach(e=>cand&=e.mask);const names=c.sus.filter((s,i)=>cand>>i&1).map(s=>s.name).join(", ");
+  const lp=G.st.find(x=>x.kind==="wit"&&x.idx===c.liar).persona,up=rank(prof.xp)>before;
+  sheet(`<div class="eyebrow">Zaak gesloten</div><h2>${esc(c.sus[c.killer].name)} bekent</h2><div class="stars">${"★".repeat(stars)}${"☆".repeat(3-stars)}</div>
+  <p>„${esc(vn(MOT[c.sus[c.killer].name][1]))}”</p>
+  <p>Het bewijs liet over: ${esc(names)}. De leugenaar was ${esc(lp)}: „${esc(c.wit[c.liar].text)}” Met die leugen eruit past alleen ${esc(c.sus[c.killer].name)}.</p>
+  <div class="tags"><i>${Math.round(min)} min</i><i>${(G.dist/1000).toFixed(1).replace(".",",")} km</i><i>${G.rare.filter(q=>q.done).length}/3 schimmen</i><i>+${xp} punten</i>${G.mode==="gps"?`<i>${prof.streak} ${prof.streak===1?"dag":"dagen"} op rij</i>`:""}</div>
+  ${up?`<p><b>Bevorderd tot ${RANKS[rank(prof.xp)][1]}.</b></p>`:""}${!s2?`<p class="note" style="color:#6a6250">Ster gemist: de leugenaar aanwijzen.</p>`:""}${!s3?`<p class="note" style="color:#6a6250">Ster gemist: in één keer goed, binnen ${G.par} minuten.</p>`:""}
+  <button class="btn" id="shX">Naar het bureau</button>`);
+  $("#sheet").dataset.lock="1";
+  $("#sheetBody").onclick=e=>{if(e.target.id==="shX"){delete $("#sheet").dataset.lock;closeSheet();if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}G=null;home()}};
+}
+home();
+})();
+</script>
+</body>
+</html>
