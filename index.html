@@ -45,6 +45,13 @@ p{margin:0}
 .seg button[aria-pressed="true"]{border-color:var(--lamp);color:var(--lamp)}
 .how{display:flex;flex-direction:column;gap:6px;color:var(--fog);font-size:15px;padding-left:18px;margin:0}
 .note{font-size:13px;color:var(--fog)}
+#hero{position:absolute;inset:0;width:100%;height:100%;display:block}
+#home .wrap{min-height:100%}
+.row0{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#snd{white-space:nowrap;flex:none;font-family:var(--f-cond);text-transform:uppercase;letter-spacing:.1em;font-size:12px;border:1px solid var(--street);border-radius:20px;padding:5px 12px;background:rgba(16,26,43,.6)}
+#ttl{transform-origin:50% 60%;will-change:transform;text-shadow:1px 1px 0 #c4832a,2px 2px 0 #a36b1f,3px 3px 0 #825416,4px 4px 0 #613e0e,10px 14px 20px rgba(0,0,0,.75)}
+#typed{font-family:var(--f-type);min-height:3em;text-shadow:0 2px 8px #000}
+.gap{flex:1;min-height:250px}
 /* papier */
 .paper{background:var(--paper);color:var(--ink);padding:18px 16px;border-radius:2px;display:flex;flex-direction:column;gap:12px}
 .paper h2{color:var(--ink)}
@@ -120,9 +127,13 @@ input[type=range]{width:100%;accent-color:var(--blood)}
 <body>
 
 <div id="app">
+  <canvas id="hero"></canvas>
   <section class="screen" id="home">
     <div class="wrap">
-      <div><div class="eyebrow">Een moordzaak in je eigen straten</div><h1>Schaduw&shy;spoor</h1></div>
+      <div class="row0"><div class="eyebrow">Een moordzaak in je eigen straten</div><button type="button" id="snd" aria-pressed="false">Regen uit</button></div>
+      <h1 id="ttl">Schaduw&shy;spoor</h1>
+      <p id="typed"></p>
+      <div class="gap"></div>
       <p class="lead">Loop door je buurt. Zoek bewijs, vang de schimmen die iets gezien hebben en wijs de dader aan. Precies één getuige liegt.</p>
       <div class="strip">
         <div><b id="pRank">Aspirant</b><span>Rang</span></div>
@@ -174,6 +185,7 @@ input[type=range]{width:100%;accent-color:var(--blood)}
       <button type="button" id="zIn" aria-label="Inzoomen">+</button>
       <button type="button" id="zOut" aria-label="Uitzoomen">−</button>
       <button type="button" id="zMe" aria-label="Centreer op mij">◎</button>
+      <button type="button" id="zS" aria-label="Geluid aan of uit">♪</button>
     </div>
     <div id="low">
       <div id="radar">Zoek het eerste spoor</div>
@@ -269,10 +281,26 @@ const today=()=>{const d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+
 const rank=xp=>{let i=0;RANKS.forEach((r,j)=>{if(xp>=r[0])i=j});return i};
 function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2600)}
 function buzz(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
-let AC=null;function beep(f,d){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;o.type="triangle";g.gain.value=.08;g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
-function show(id){["home","brief","play"].forEach(s=>$("#"+s).hidden=s!==id);if(id==="play")resize()}
+let AC=null,sndOn=LS.get("ss_snd",true);function beep(f,d){if(!sndOn)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;o.type="triangle";g.gain.value=.08;g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+function actx(){AC=AC||new (window.AudioContext||window.webkitAudioContext)();return AC}
+function thump(v){if(!sndOn)return;try{const a=actx(),o=a.createOscillator(),g=a.createGain();o.type="triangle";o.frequency.setValueAtTime(95,a.currentTime);o.frequency.exponentialRampToValueAtTime(50,a.currentTime+.12);g.gain.setValueAtTime(v,a.currentTime);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+.17);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+.19)}catch(e){}}
+function step(pan,v){if(!sndOn)return;try{const a=actx(),n=Math.floor(a.sampleRate*.07),b=a.createBuffer(1,n,a.sampleRate),c=b.getChannelData(0);for(let i=0;i<n;i++)c[i]=(Math.random()*2-1)*(1-i/n);
+  const s=a.createBufferSource(),fl=a.createBiquadFilter(),g=a.createGain();s.buffer=b;fl.type="lowpass";fl.frequency.value=520;g.gain.value=v;s.connect(fl);fl.connect(g);
+  if(a.createStereoPanner){const p=a.createStereoPanner();p.pan.value=pan;g.connect(p);p.connect(a.destination)}else g.connect(a.destination);s.start()}catch(e){}}
+function say(txt,i){if(!sndOn||!window.speechSynthesis)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);u.lang="nl-NL";u.rate=.9;u.pitch=.45+(i%5)*.13;const v=speechSynthesis.getVoices().filter(x=>/^nl/i.test(x.lang));if(v.length)u.voice=v[i%v.length];speechSynthesis.speak(u)}catch(e){}}
+let nearD=1e9,heartOn=false,stepAt=0;
+function heartLoop(){if(heartOn)return;heartOn=true;stepAt=Date.now()+20000+Math.random()*20000;
+  const f=()=>{if($("#play").hidden||!G){heartOn=false;return}
+    let next=900;
+    if($("#sheet").hidden&&$("#ar").hidden){
+      if(nearD<150){thump(.5);setTimeout(()=>thump(.3),170);next=480+nearD/150*1000}
+      if(Date.now()>stepAt){stepAt=Date.now()+25000+Math.random()*30000;const pan=Math.random()<.5?-.8:.8;for(let i=0;i<4;i++)setTimeout(()=>step(pan,.1+i*.05),i*480)}
+    }
+    setTimeout(f,next)};f()}
+
+function show(id){["home","brief","play"].forEach(s=>$("#"+s).hidden=s!==id);$("#hero").hidden=id!=="home";if(id==="play")resize()}
 function sheet(html){$("#sheetBody").innerHTML=html;$("#sheet").hidden=false;$("#sheetBody").scrollTop=0}
-function closeSheet(){$("#sheet").hidden=true;mg.stop()}
+function closeSheet(){$("#sheet").hidden=true;mg.stop();try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}}
 $("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet"&&!$("#sheet").dataset.lock)closeSheet()});
 
 /* ---------- startscherm ---------- */
@@ -283,7 +311,7 @@ function home(){
   $("#pNext").textContent=nx?prof.xp+" punten. Nog "+(nx[0]-prof.xp)+" tot "+nx[1]+".":prof.xp+" punten. Hoogste rang bereikt.";
   $("#bResume").hidden=!LS.get("ss_game",null);
   $("#bGps").textContent=prof.last===today()?"Speel de zaak van vandaag opnieuw":"Start de zaak van vandaag";
-  show("home");
+  show("home");heroStart();
 }
 $("#len").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;R0=+b.dataset.r;PAR=+b.dataset.par;document.querySelectorAll("#len button").forEach(x=>x.setAttribute("aria-pressed",x===b))});
 $("#bGps").onclick=()=>startGps(hashStr(today()));
@@ -310,16 +338,23 @@ function startGps(seed){
     const kx=111320*Math.cos(lat*Math.PI/180),ky=110540,xy=(la,lo)=>[(lo-lon)*kx,-(la-lat)*ky];
     let pois=[],ways=[];
     try{
-      const q=`[out:json][timeout:20];(nw(around:${R},${lat},${lon})[amenity~"^(place_of_worship|bank|atm|cafe|pub|bar|restaurant|pharmacy|post_box|library|school|fuel|bench)$"];nw(around:${R},${lat},${lon})[tourism~"^(hotel|artwork|museum)$"];nw(around:${R},${lat},${lon})[shop~"^(supermarket|bakery|convenience)$"];node(around:${R},${lat},${lon})[highway=bus_stop];nw(around:${R},${lat},${lon})[leisure~"^(park|playground)$"];way(around:${R+150},${lat},${lon})[highway~"^(residential|tertiary|secondary|primary|unclassified|living_street|pedestrian|footway|path|cycleway|service)$"];);out geom;`;
-      const ac=new AbortController(),to=setTimeout(()=>ac.abort(),25000);
-      const res=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(q),signal:ac.signal});clearTimeout(to);
-      const d=await res.json();
+      const q=`[out:json][timeout:25];(nw(around:${R},${lat},${lon})[amenity~"^(place_of_worship|bank|atm|cafe|pub|bar|restaurant|pharmacy|post_box|library|school|fuel)$"];nw(around:${R},${lat},${lon})[tourism~"^(hotel|artwork|museum)$"];nw(around:${R},${lat},${lon})[shop~"^(supermarket|bakery|convenience)$"];node(around:${R},${lat},${lon})[highway=bus_stop];nw(around:${R},${lat},${lon})[leisure~"^(park|playground)$"];way(around:${R+150},${lat},${lon})[highway~"^(residential|tertiary|secondary|primary|unclassified|living_street|pedestrian|footway|path|cycleway|service)$"];);out geom;`;
+      const hosts=["https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"];let d=null,why="";
+      for(let i=0;i<hosts.length&&!d;i++){
+        st.textContent="De buurt in kaart brengen… (poging "+(i+1)+" van "+hosts.length+")";
+        const ac=new AbortController(),to=setTimeout(()=>ac.abort(),30000);
+        try{const res=await fetch(hosts[i],{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q),signal:ac.signal});
+          if(!res.ok)throw new Error("server antwoordt "+res.status);d=await res.json()}
+        catch(e){why=e.name==="AbortError"?"duurde te lang":(e.message||"geen verbinding")}
+        clearTimeout(to);
+      }
+      if(!d)throw new Error(why);
       for(const e of d.elements||[]){
         const ty=poiType(e.tags);
         if(e.type==="way"&&e.geometry&&!ty&&e.tags&&e.tags.highway){const p=[];e.geometry.forEach(g=>{const c=xy(g.lat,g.lon);p.push(Math.round(c[0]),Math.round(c[1]))});const h=e.tags.highway;ways.push({p,w:/primary|secondary|tertiary/.test(h)?3:/footway|path|cycleway/.test(h)?1:2,n:e.tags.name||""})}
         else if(ty){let la=e.lat,lo=e.lon;if(la==null&&e.geometry){la=0;lo=0;e.geometry.forEach(g=>{la+=g.lat;lo+=g.lon});la/=e.geometry.length;lo/=e.geometry.length}if(la==null)continue;const c=xy(la,lo);pois.push({x:c[0],y:c[1],type:ty,name:e.tags.name||""})}
       }
-    }catch(e){toast("Geen kaartgegevens. De sporen liggen op loopafstand om je heen.")}
+    }catch(e){toast("Geen kaartgegevens ("+e.message+"). De sporen liggen op loopafstand om je heen.")}
     st.textContent="";build(seed,"gps",pois,ways,{lat,lon,kx,ky});
   },err=>{st.textContent="Geen toegang tot je locatie. Open dit spel in de browser van je telefoon via een https-adres en sta locatie toe. Hier kun je de oefenronde spelen."},{enableHighAccuracy:true,timeout:20000});
 }
@@ -365,7 +400,7 @@ function enter(){
   if(G.mode==="gps"&&navigator.geolocation){const o=G.origin;watchId=navigator.geolocation.watchPosition(p=>{const x=(p.coords.longitude-o.lon)*o.kx,y=-(p.coords.latitude-o.lat)*o.ky,d=Math.hypot(x-P.x,y-P.y);if(d>3&&d<80)G.dist+=d;if(d>3){P.x=x;P.y=y}P.acc=p.coords.accuracy||0},()=>{},{enableHighAccuracy:true,maximumAge:2000})}
   try{navigator.wakeLock&&navigator.wakeLock.request("screen").catch(()=>{})}catch(e){}
   if(G.mode==="demo")toast("Oefenronde: tik op de kaart om te lopen.");
-  requestAnimationFrame(loop);
+  heartLoop();requestAnimationFrame(loop);
 }
 
 /* ---------- kaart ---------- */
@@ -415,7 +450,7 @@ function tick(){
   const el=Math.floor((Date.now()-G.t0)/1000);$("#hT").textContent=Math.floor(el/60)+":"+String(el%60).padStart(2,"0");
   $("#hS").textContent=G.st.filter(s=>s.done).length+"/8";$("#hG").textContent=G.rare.filter(q=>q.done).length+"/3";$("#hD").textContent=(G.dist/1000).toFixed(1).replace(".",",");
   const ts=targets();let near=null,nd=1e9;ts.forEach(s=>{const d=dTo(s);if(d<nd){nd=d;near=s}});
-  const rr=G.rare.find(q=>!q.done&&dTo(q)<=320&&dTo(q)>200);
+  nearD=nd;const rr=G.rare.find(q=>!q.done&&dTo(q)<=320&&dTo(q)>200);
   $("#radar").textContent=!near?"Alle sporen binnen. Tijd om te beschuldigen.":rr?"Er waart iets rond, vlakbij…":nd<60?"Heet. Nog "+Math.round(nd)+" m":nd<150?"Warm. Nog "+Math.round(nd)+" m":"Dichtstbijzijnde spoor: "+Math.round(nd)+" m";
   const here=ts.find(inRange);
   if(here&&arrived!==here&&$("#sheet").hidden){arrived=here;sel=here;buzz([80,60,80]);beep(660,.2)}
@@ -440,6 +475,8 @@ cv.addEventListener("pointermove",e=>{if(!pd)return;const dx=e.clientX-pd.x,dy=e
 cv.addEventListener("pointerup",e=>{if(!pd)return;if(!pd.drag){const b=cv.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top;let hit=null;targets().concat(G.st.filter(s=>s.done)).forEach(s=>{if(Math.hypot(sx(s.x)-mx,sy(s.y)-my)<30)hit=s});
   if(hit&&!hit.done){sel=hit;chip()}else if(G.mode==="demo"){const wx=(mx-cw/2)/V.s+(V.follow?P.x:V.ox),wy=(my-chh/2)/V.s+(V.follow?P.y:V.oy);walkTo={x:wx,y:wy};sel=null;V.follow=true;chip()}else{sel=null;chip()}}pd=null});
 $("#zIn").onclick=()=>V.s=Math.min(4,V.s*1.4);$("#zOut").onclick=()=>V.s=Math.max(.1,V.s/1.4);$("#zMe").onclick=()=>V.follow=true;
+const sndUi=()=>{$("#zS").style.opacity=sndOn?1:.4;$("#zS").setAttribute("aria-pressed",sndOn?"true":"false")};sndUi();
+$("#zS").onclick=()=>{sndOn=!sndOn;LS.set("ss_snd",sndOn);sndUi();if(!sndOn){try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}}toast(sndOn?"Geluid aan":"Geluid uit")};
 
 /* ---------- ontmoeting met minispel ---------- */
 const mg={raf:0,tm:[],stop(){cancelAnimationFrame(this.raf);this.raf=0;this.tm.forEach(clearTimeout);this.tm=[]}};
@@ -532,7 +569,21 @@ const MOT={
 "Noor Haverkamp":["tekende een vergunning waar {V} alles van wist","{V} had de papieren van die vergunning. Eén telefoontje en mijn loopbaan was voorbij."],
 "Gijs Terlouw":["heeft al jaren ruzie met {V} over een schutting","Het ging al lang niet meer om die schutting. {V} lachte me uit, en toen knapte er iets."]};
 const INTRO={"de koster":"Ik sloot net de zijdeur af toen ik het hoorde.","de nachtwaker van de bank":"Ik zit hier elke nacht. Ik zie alles wat langs die automaat loopt.","de barman":"De laatste ronde was net geweest. Ik stond glazen te spoelen bij het raam.","de nachtportier":"Na elven komt hier niemand binnen zonder dat ik het zie.","de apothekersassistente":"Ik had avonddienst en stond buiten even te roken.","de nachtbuschauffeur":"Ik had tien minuten pauze. Motor uit, raam open.","de postbode":"Ik leeg die bus altijd als laatste, vlak voor middernacht.","de hondenuitlater":"De hond wilde niet verder. Die rook het eerder dan ik.","de conciërge":"Ik kwam het alarm controleren. Vals alarm, dacht ik eerst.","de vakkenvuller":"Ik stond achter bij de containers karton te stampen.","de bibliothecaresse":"Ik haalde de laat ingeleverde boeken uit de bus bij de deur.","de straatmuzikant":"Ik zat mijn kleingeld te tellen onder de lantaarn.","de slapeloze buurvrouw":"Ik slaap al jaren niet. Ik zit bij het raam, met thee.","de pompbediende":"Rustige nacht. Eén klant in een uur. Dus ik keek naar buiten.","de krantenbezorger":"Ik was vroeg. Of laat, hoe je het bekijkt.","de straatveger":"Ik veeg hier voor de zon opkomt. Dan zie je dingen.","de nachtverpleger op weg naar huis":"Ik kwam van mijn dienst en liep binnendoor.","de visser met slapeloosheid":"Ik liep met mijn hengel naar het water.","de bakkersknecht":"Ik begin om drie uur. Ik was onderweg naar de oven.","de dakloze dichter":"Ik lag in het portiek. Niemand ziet mij, maar ik zie iedereen."};
-const FRAG=["19.10 uur. {V} eet alleen en laat het halve bord staan. Op tafel ligt een envelop zonder afzender.","20.00 uur. Drie gemiste oproepen op de telefoon van {V}. Alle drie van een nummer uit de buurt.","20.45 uur. {V} haalt iets uit de kluis en stopt het in een binnenzak.","21.30 uur. Een buurman ziet {V} de deur uit gaan. Geen jas, wel haast.","22.15 uur. {V} staat te praten met iemand die in de schaduw blijft.","22.50 uur. Stemmen, steeds harder. Iemand roept: dat had je me beloofd.","23.20 uur. {V} loopt alleen verder en kijkt steeds achterom.","23.40 uur. Een doffe klap. Daarna voetstappen die zich weghaasten. De envelop is nooit teruggevonden."];
+const VF={"Cornelis Vermaat":["19.10 uur. {V} slaat het kasboek dicht. Eén naam is met rood omcirkeld.","20.00 uur. {V} belt drie keer hetzelfde nummer. Er wordt niet opgenomen."],
+"Adèle Rozenburg":["19.10 uur. {V} haalt een schilderij van de muur en zet het met de voorkant naar de wand.","20.00 uur. Een koper belt af. {V} gooit de telefoon op de bank."],
+"Wessel Dijkgraaf":["19.10 uur. {V} rolt de bouwtekeningen uit op de keukentafel en zet een kruis door één perceel.","20.00 uur. Er ligt een steen in de voortuin van {V}, met een briefje eromheen."],
+"Thera Blom":["19.10 uur. {V} legt een doos oude brieven op tafel en leest er één twee keer.","20.00 uur. {V} kopieert één brief en verstopt het origineel tussen de kookboeken."]};
+const KF={"Ilse Verbrugge":["iemand die een leren map onder de arm klemt","na twintig jaar, en dan dit?","Op de stenen blijft een gebroken lakzegel achter."],
+"Ruben Achterberg":["iemand die naar rook en pekel ruikt","die zaak is van mijn vader geweest!","In de goot ligt een verfrommelde aanmaning."],
+"Mirjam de Wolf":["iemand die zachtjes een melodie neuriet","dertig jaar, en jij zet er een streep door!","Tussen de struiken ligt een blad met muzieknoten."],
+"Tobias Koolen":["iemand wiens auto verderop staat te draaien","je hebt zelf gezegd wat het waard was!","Op straat ligt een ritbon zonder bedrag."],
+"Fenna Oosterhout":["iemand die naar ontsmettingsmiddel ruikt","je hebt me kapotgemaakt in deze buurt!","In het gras ligt een lege halsband."],
+"Hendrik Maas":["iemand die een zware sleutelbos laat rinkelen","die kroeg is alles wat ik heb!","Op de stoep ligt een bierviltje met een bedrag erop."],
+"Saar Lindeman":["iemand die alles opschrijft in een boekje","dat verhaal was van mij!","Op de stenen ligt een afgebroken potlood."],
+"Otto Pruim":["iemand met witte katoenen handschoenen","niemand had het verschil ooit gezien!","In de goot ligt een loep met een barst."],
+"Noor Haverkamp":["iemand die steeds over de schouder kijkt","die handtekening was een formaliteit!","Op de grond ligt een speldje met het gemeentewapen."],
+"Gijs Terlouw":["iemand met smeerolie aan de handen","het gaat allang niet meer om die schutting!","Op de stenen ligt een ventieldopje."]};
+const fragList=()=>{const v=VF[G.c.victim[0]],k=KF[G.c.sus[G.c.killer].name];return[v[0],v[1],"20.45 uur. {V} haalt iets uit de kluis en stopt het in een binnenzak.","21.30 uur. Een buurman ziet {V} de deur uit gaan. Geen jas, wel haast.","22.15 uur. {V} staat te praten met "+k[0]+".","22.50 uur. Stemmen, steeds harder. Iemand roept: "+k[1],"23.20 uur. {V} loopt alleen verder en kijkt steeds achterom.","23.40 uur. Een doffe klap, daarna voetstappen die zich weghaasten. "+k[2]]};
 const vn=s=>s.replace(/\{V\}/g,G.c.victim[0]);
 /* ---------- camera: de schaduw in je eigen straat ---------- */
 function encounter(t){
@@ -583,8 +634,8 @@ function reveal(t){
     if(ti>=0){G.tips.push(ti);const p=G.st.find(x=>x.kind==="wit"&&x.idx===ti).persona;tip=`<div class="clue"><em>Tip van de schim</em>Geloof ${esc(p)}. Die spreekt de waarheid.</div>`}
     h=`<div class="eyebrow r${s[1]}">${RN[s[1]]}${isNew?" · nieuw in je boek":""}</div><h2>${esc(s[0])}</h2><p>${esc(s[2])}</p>${tip}<p class="note" style="color:#6a6250">+${20*s[1]} punten</p>`;
   }else if(t.kind==="ev"){const e=G.c.ev[t.idx];h=`<div class="clue"><em>Bewijs · altijd waar</em><b>${esc(e.title)}</b>${esc(e.text)}</div>`}
-  else{const w=G.c.wit[t.idx];h=`<div class="clue wit"><em>${esc(t.persona)} · getuige</em>„${esc(INTRO[t.persona]||"Ik kwam hier toevallig langs.")} ${esc(w.text)}”</div><p class="note" style="color:#6a6250">Eén van de vijf getuigen liegt. Deze ook?</p>`}
-  if(t.id==null){const n=G.st.filter(x=>x.done).length;h+=`<div class="clue" style="border-color:#6a6250;margin-top:8px"><em>De laatste avond · ${n}/8</em>${esc(vn(FRAG[n-1]))}</div>`}
+  else{const w=G.c.wit[t.idx];say((INTRO[t.persona]||"")+" "+w.text,t.idx);h=`<div class="clue wit"><em>${esc(t.persona)} · getuige</em>„${esc(INTRO[t.persona]||"Ik kwam hier toevallig langs.")} ${esc(w.text)}”</div><p class="note" style="color:#6a6250">Eén van de vijf getuigen liegt. Deze ook?</p>`}
+  if(t.id==null){const n=G.st.filter(x=>x.done).length;h+=`<div class="clue" style="border-color:#6a6250;margin-top:8px"><em>De laatste avond · ${n}/8</em>${esc(vn(fragList()[n-1]))}</div>`}
   $("#mgHint").hidden=true;$("#mgbox").hidden=true;
   $("#mgOut").innerHTML=h+`<button class="btn" id="mgOk" style="margin-top:12px">Verder</button>`;
   $("#mgOk").onclick=()=>{closeSheet();sel=null;save();if(G.st.every(s=>s.done))toast("Alle acht sporen binnen. Open je notitieboek.")};
@@ -595,7 +646,7 @@ function reveal(t){
 function noteSheet(tab){
   const c=G.c,found=G.st.filter(s=>s.done);
   let body;
-  if(tab==="v"){const n=found.length;body=`<p>${esc(c.victim[0])}, ${esc(c.victim[1])}. ${esc(c.victim[2])}</p><div class="eyebrow">De laatste avond · ${n}/8</div><div class="list">`+(FRAG.slice(0,n).map(x=>`<div class="clue" style="border-color:#6a6250">${esc(vn(x))}</div>`).join("")||`<p class="note" style="color:#6a6250">Elk spoor dat je vindt, geeft een stuk van de avond terug.</p>`)+`</div>`}
+  if(tab==="v"){const n=found.length;body=`<p>${esc(c.victim[0])}, ${esc(c.victim[1])}. ${esc(c.victim[2])}</p><div class="eyebrow">De laatste avond · ${n}/8</div><div class="list">`+(fragList().slice(0,n).map(x=>`<div class="clue" style="border-color:#6a6250">${esc(vn(x))}</div>`).join("")||`<p class="note" style="color:#6a6250">Elk spoor dat je vindt, geeft een stuk van de avond terug.</p>`)+`</div>`}
   else if(tab==="s")body=`<p class="note" style="color:#6a6250">Tik op een verdachte om die weg te strepen.</p><div class="list">`+c.sus.map((s,i)=>susCard(s,i).replace('<div class="sus"',`<button type="button" data-s="${i}" class="sus${G.ms[i]?" out":""}"`).replace(/<\/div>$/,"</button>")).join("")+`</div>`;
   else{const ev=found.filter(s=>s.kind==="ev"),wi=found.filter(s=>s.kind==="wit");
     body=`<div class="eyebrow">Bewijs ${ev.length}/3 · altijd waar</div><div class="list">`+(ev.map(s=>`<div class="clue"><b>${esc(c.ev[s.idx].title)}</b>${esc(c.ev[s.idx].text)}</div>`).join("")||`<p class="note" style="color:#6a6250">Nog niets gevonden.</p>`)+`</div>
@@ -640,6 +691,64 @@ function verdict(ps,pw){
   $("#sheet").dataset.lock="1";
   $("#sheetBody").onclick=e=>{if(e.target.id==="shX"){delete $("#sheet").dataset.lock;closeSheet();if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}G=null;home()}};
 }
+/* ---------- levende startpagina: een straat in de regen waar je doorheen loopt ---------- */
+const hv=$("#hero"),hx=hv.getContext("2d");let hw=0,hh=0,heroRaf=0,figHit=null,figT0=0;const par={x:0,y:0,tx:0,ty:0};
+const hr=rngOf(11),arr=(n,f)=>{const a=[];for(let i=0;i<n;i++)a.push(f(i));return a};
+const FAR=arr(22,()=>[hr(),.05+hr()*.11,.03+hr()*.05]),MID=arr(12,i=>[i/12+hr()*.04,.1+hr()*.16,.07+hr()*.05,1+Math.floor(hr()*1e6)]),RAIN=arr(110,()=>[hr(),hr(),.7+hr()*.9]);
+const WHISPER=["„Je bent te laat. Of juist op tijd.”","„Ik heb niets gezien. Dat zeggen ze allemaal.”","„Kijk niet naar mij. Kijk naar wie er liegt.”","„Deze straat vergeet niets.”","„Eén van hen staat vannacht vlak bij je.”"];
+function heroSize(){const d=window.devicePixelRatio||1;hw=hv.clientWidth;hh=hv.clientHeight;hv.width=hw*d;hv.height=hh*d}
+function hero(ts){
+  if($("#home").hidden){heroRaf=0;return}
+  const d0=window.devicePixelRatio||1;hx.setTransform(d0,0,0,d0,0,0);
+  const t=ts/1000,w=hw,h=hh;par.x+=(par.tx-par.x)*.06;par.y+=(par.ty-par.y)*.06;
+  const hz=h*.42+par.y*10,vx=w/2-par.x*w*.14,gh=h-hz;
+  let g=hx.createLinearGradient(0,0,0,hz);g.addColorStop(0,"#070c18");g.addColorStop(1,"#1d2e4f");hx.fillStyle=g;hx.fillRect(0,0,w,hz+2);
+  const mx=w*.78-par.x*6,my=h*.13;g=hx.createRadialGradient(mx,my,4,mx,my,90);g.addColorStop(0,"rgba(236,228,210,.95)");g.addColorStop(.18,"rgba(236,228,210,.9)");g.addColorStop(.2,"rgba(236,228,210,.18)");g.addColorStop(1,"rgba(236,228,210,0)");hx.fillStyle=g;hx.fillRect(mx-90,my-90,180,180);
+  hx.fillStyle="#15213a";FAR.forEach(b=>{hx.fillRect((b[0]*1.3-.15)*w-par.x*10,hz-b[1]*h,b[2]*w*1.3,b[1]*h+2)});
+  const cx0=w*.27-par.x*10;hx.fillRect(cx0,hz-h*.24,w*.05,h*.24);hx.beginPath();hx.moveTo(cx0-3,hz-h*.24);hx.lineTo(cx0+w*.025,hz-h*.33);hx.lineTo(cx0+w*.05+3,hz-h*.24);hx.fill();
+  MID.forEach(b=>{const bx=(b[0]*1.3-.15)*w-par.x*28,bw=b[2]*w*1.4,bh=b[1]*h;hx.fillStyle="#0b1322";hx.fillRect(bx,hz-bh,bw,bh+2);
+    const r=rngOf(b[3]),cols=Math.max(2,Math.floor(bw/16)),rows=Math.max(2,Math.floor(bh/20));
+    for(let i=0;i<cols;i++)for(let j=0;j<rows;j++){const on=r()<.22,ph=r()*40;if(on&&Math.sin(t*.7+ph)>-.85){hx.fillStyle="rgba(240,166,58,"+(.5+.3*Math.sin(t*3+ph))+")";hx.fillRect(bx+5+i*16,hz-bh+7+j*20,7,10)}}});
+  g=hx.createLinearGradient(0,hz,0,h);g.addColorStop(0,"#1c2a47");g.addColorStop(1,"#080d18");hx.fillStyle=g;hx.fillRect(0,hz,w,gh);
+  const dep=k=>(((k-t*.35)%8.4)+8.4)%8.4+.7;
+  hx.lineWidth=1;for(let k=0;k<14;k++){const d=dep(k*.6);hx.strokeStyle="rgba(147,166,198,"+Math.min(.3,.35/d)+")";hx.beginPath();hx.moveTo(0,hz+gh/d);hx.lineTo(w,hz+gh/d);hx.stroke()}
+  hx.strokeStyle="rgba(147,166,198,.16)";[-1.5,-.5,.5,1.5].forEach(X=>{hx.beginPath();hx.moveTo(vx,hz);hx.lineTo(vx+X*w*1.3,h);hx.stroke()});
+  const obj=[];for(let k=0;k<6;k++){obj.push([dep(k*1.4),-1]);obj.push([dep(k*1.4+.7),1])}
+  const u=((((t-figT0)%26)+26)%26)/26;obj.push([7-5.3*u,0]);obj.sort((a,b)=>b[0]-a[0]);
+  obj.forEach(o=>{const d=o[0],s=1/d,yb=hz+gh*s;
+    if(o[1]===0){const sz=h*.46*s,x=vx+.1*w*s,al=Math.min(1,u*8,(1-u)*6);ghost(hx,x,yb-sz*.5,sz,"#a6ead9",Math.max(0,al)*.95);figHit={x:x,y:yb-sz*.5,r:sz*.55};return}
+    const x=vx+o[1]*.55*w*s,ph=h*.5*s;hx.save();hx.globalAlpha=Math.max(0,Math.min(1,(9.1-d)/2));
+    hx.fillStyle="rgba(240,166,58,.16)";hx.beginPath();hx.ellipse(x-o[1]*26*s,yb,110*s,20*s,0,0,7);hx.fill();
+    hx.strokeStyle="#05080e";hx.lineWidth=Math.max(1,6*s);hx.beginPath();hx.moveTo(x,yb);hx.lineTo(x,yb-ph);hx.lineTo(x-o[1]*26*s,yb-ph);hx.stroke();
+    const lx=x-o[1]*26*s,ly=yb-ph+6*s,rr=70*s;const gl=hx.createRadialGradient(lx,ly,1,lx,ly,rr);gl.addColorStop(0,"rgba(255,214,140,.95)");gl.addColorStop(.12,"rgba(240,166,58,.55)");gl.addColorStop(1,"rgba(240,166,58,0)");hx.fillStyle=gl;hx.fillRect(lx-rr,ly-rr,rr*2,rr*2);hx.restore()});
+  hx.strokeStyle="rgba(147,166,198,.28)";hx.lineWidth=1;hx.beginPath();RAIN.forEach(r=>{const y=((r[1]+t*r[2]*.9)%1)*h,x=(((r[0]*1.2*w-y*.25-par.x*30)%w)+w)%w;hx.moveTo(x,y);hx.lineTo(x-4,y+15)});hx.stroke();
+  g=hx.createLinearGradient(0,hz-40,0,hz+60);g.addColorStop(0,"rgba(147,166,198,0)");g.addColorStop(.5,"rgba(147,166,198,.13)");g.addColorStop(1,"rgba(147,166,198,0)");hx.fillStyle=g;hx.fillRect(0,hz-40,w,100);
+  g=hx.createLinearGradient(0,h*.6,0,h*.8);g.addColorStop(0,"rgba(16,26,43,0)");g.addColorStop(1,"rgba(16,26,43,.95)");hx.fillStyle=g;hx.fillRect(0,h*.6,w,h*.4);
+  $("#ttl").style.transform="perspective(600px) rotateY("+(par.x*16).toFixed(2)+"deg) rotateX("+(-par.y*9).toFixed(2)+"deg)";
+  heroRaf=still?0:requestAnimationFrame(hero);
+}
+function heroStart(){heroSize();if(!heroRaf)heroRaf=requestAnimationFrame(hero);if(!typeLoop.on){typeLoop.on=true;typeLoop(0,0)}}
+addEventListener("resize",()=>{if(!$("#home").hidden)heroSize()});
+$("#home").addEventListener("pointermove",e=>{par.tx=(e.clientX/innerWidth-.5)*2;par.ty=(e.clientY/innerHeight-.5)*2});
+addEventListener("deviceorientation",e=>{if(e.gamma==null||$("#home").hidden)return;par.tx=Math.max(-1,Math.min(1,e.gamma/30));par.ty=Math.max(-1,Math.min(1,((e.beta||45)-45)/30))});
+$("#home").addEventListener("click",e=>{if(e.target.closest("button")||!figHit)return;const b=hv.getBoundingClientRect();
+  if(Math.hypot(e.clientX-b.left-figHit.x,e.clientY-b.top-figHit.y)<Math.max(36,figHit.r)){toast(WHISPER[Math.floor(Math.random()*WHISPER.length)]);beep(170,.5);buzz(60);figT0=performance.now()/1000}});
+const LINES=["Iemand in jouw straat heeft vannacht gelogen.","Acht sporen. Vijf getuigen. Eén leugenaar.","De dader kent deze buurt. Jij ook.","Het is {T} uur. Het spoor wordt koud.","Tik op de schaduw, als je durft."];
+function typeLoop(i,n){
+  if($("#home").hidden){typeLoop.on=false;return}
+  const d=new Date(),s=LINES[i].replace("{T}",d.getHours()+"."+String(d.getMinutes()).padStart(2,"0"));
+  $("#typed").textContent=s.slice(0,n)+(n<s.length?"▌":"");
+  if(still){$("#typed").textContent=s;return}
+  setTimeout(()=>n<s.length?typeLoop(i,n+1):typeLoop((i+1)%LINES.length,0),n<s.length?45:2600);
+}
+/* regen als geluid */
+let rainNode=null;
+$("#snd").onclick=()=>{try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+  if(rainNode){rainNode.stop();rainNode=null}
+  else{const buf=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate),ch=buf.getChannelData(0);for(let i=0;i<ch.length;i++)ch[i]=Math.random()*2-1;
+    const src=AC.createBufferSource(),fl=AC.createBiquadFilter(),gn=AC.createGain();src.buffer=buf;src.loop=true;fl.type="bandpass";fl.frequency.value=1400;fl.Q.value=.4;gn.gain.value=.06;src.connect(fl);fl.connect(gn);gn.connect(AC.destination);src.start();rainNode=src}
+  }catch(e){}
+  $("#snd").textContent=rainNode?"Regen aan":"Regen uit";$("#snd").setAttribute("aria-pressed",rainNode?"true":"false")};
 home();
 })();
 </script>
