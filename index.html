@@ -121,6 +121,11 @@ input[type=range]{width:100%;accent-color:var(--blood)}
 #ar{position:absolute;inset:0;z-index:8;background:#000}
 #ar video,#ar canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;touch-action:none}
 #arX{position:absolute;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));width:auto;background:rgba(16,26,43,.8)}
+#load{position:absolute;inset:0;z-index:7;background:rgba(16,26,43,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}
+#load b{font-family:var(--f-type);font-weight:400;font-size:22px;color:var(--lamp);text-wrap:balance}
+#load span{color:var(--fog);font-size:14px;max-width:30ch}
+.spin{width:64px;height:64px;border-radius:50%;border:5px solid var(--street);border-top-color:var(--lamp);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 #toast{position:absolute;left:50%;top:70px;transform:translateX(-50%);background:var(--lamp);color:var(--ink);padding:8px 14px;border-radius:4px;font-weight:600;z-index:9;max-width:88%;text-align:center}
 </style>
 </head>
@@ -204,6 +209,7 @@ input[type=range]{width:100%;accent-color:var(--blood)}
 
   <div class="sheet" id="sheet" hidden><div class="paper" id="sheetBody"></div></div>
   <div id="ar" hidden><video id="arV" playsinline muted autoplay></video><canvas id="arC"></canvas><button type="button" class="btn ghost" id="arX">Camera uit</button></div>
+  <div id="load" hidden role="status"><div class="spin"></div><b id="loadT"></b><span>Dit duurt meestal 5 tot 30 seconden. Blijf even op deze pagina.</span></div>
   <div id="toast" hidden></div>
 </div>
 
@@ -329,8 +335,8 @@ function poiType(t){
   if(t.leisure==="park"||t.leisure==="playground")return"park";return null;
 }
 function startGps(seed){
-  const st=$("#status");
-  if(!navigator.geolocation){st.textContent="Dit toestel geeft geen locatie door. Speel de oefenronde.";return}
+  const st={set textContent(v){$("#loadT").textContent=v;$("#load").hidden=!v}};const fail=m=>{st.textContent="";sheet('<h2>Dat lukt hier niet</h2><p>'+m+'</p><button type="button" class="btn" id="shX">Terug</button>');$("#sheetBody").onclick=e=>{if(e.target.id==="shX")closeSheet()}};
+  if(!navigator.geolocation){fail("Dit toestel geeft geen locatie door. Je kunt wel de oefenronde spelen.");return}
   st.textContent="Je locatie zoeken…";
   navigator.geolocation.getCurrentPosition(async pos=>{
     const lat=pos.coords.latitude,lon=pos.coords.longitude,R=R0;
@@ -356,7 +362,7 @@ function startGps(seed){
       }
     }catch(e){toast("Geen kaartgegevens ("+e.message+"). De sporen liggen op loopafstand om je heen.")}
     st.textContent="";build(seed,"gps",pois,ways,{lat,lon,kx,ky});
-  },err=>{st.textContent="Geen toegang tot je locatie. Open dit spel in de browser van je telefoon via een https-adres en sta locatie toe. Hier kun je de oefenronde spelen."},{enableHighAccuracy:true,timeout:20000});
+  },err=>{fail("Geen toegang tot je locatie. Open dit spel in de browser van je telefoon via een https-adres en sta locatie toe. Hier kun je de oefenronde spelen.")},{enableHighAccuracy:true,timeout:20000});
 }
 function demoWorld(){
   const r=rngOf(7),ways=[];
