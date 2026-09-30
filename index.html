@@ -603,16 +603,17 @@ async function startAR(t){
   G.cam="on";closeSheet();
   const ar=$("#ar"),v=$("#arV"),c=$("#arC"),g=c.getContext("2d");v.srcObject=stream;v.play().catch(()=>{});ar.hidden=false;
   const w=ar.clientWidth,h=ar.clientHeight;c.width=w;c.height=h;
-  let head=0,h0=null,beta=80,manual=0,hold=0,last=0,raf=0,got=false,px=null,over=false;
-  const off=(Math.random()<.5?-1:1)*(70+Math.random()*100);
+  let head=0,h0=null,beta=80,manual=0,hold=0,last=0,raf=0,got=false,px=null,over=false,t0=0;
+  let off=(Math.random()<.5?-1:1)*(50+Math.random()*70);
   const tier=t.id!=null?SHADES[t.id][1]:0,col=tier===3?"#f0a63a":tier===2?"#c9a6ea":tier===1?"#ffffff":"#a6ead9";
   const onO=e=>{const a=e.webkitCompassHeading!=null?e.webkitCompassHeading:(e.alpha!=null?360-e.alpha:null);if(a==null)return;got=true;head=a;if(h0==null)h0=a;if(e.beta!=null)beta=e.beta};
   addEventListener("deviceorientation",onO);
-  c.onpointerdown=e=>{px=e.clientX};c.onpointermove=e=>{if(px!=null&&!got){manual-=(e.clientX-px)*.25;px=e.clientX}};c.onpointerup=()=>{px=null};
+  c.onpointerdown=e=>{px=e.clientX};c.onpointermove=e=>{if(px!=null){manual-=(e.clientX-px)*.25;px=e.clientX}};c.onpointerup=()=>{px=null};
   const end=ok=>{if(over)return;over=true;cancelAnimationFrame(raf);removeEventListener("deviceorientation",onO);stream.getTracks().forEach(x=>x.stop());v.srcObject=null;ar.hidden=true;if(ok){buzz(120);beep(700,.2);puzzle(t)}};
   $("#arX").onclick=()=>end(false);
   const f=ts=>{const dt=Math.min(.1,(ts-last)/1000)||0;last=ts;
-    const cur=got?head-h0:manual,d=(((off-cur)%360)+540)%360-180;
+    if(!t0)t0=ts;const cur=(got?head-h0:0)+manual;let d=(((off-cur)%360)+540)%360-180;
+    if(ts-t0>9000&&Math.abs(d)>4){off-=Math.sign(d)*Math.min(Math.abs(d),45*dt);d=(((off-cur)%360)+540)%360-180}
     g.clearRect(0,0,w,h);g.fillStyle="rgba(10,16,30,.38)";g.fillRect(0,0,w,h);
     const s=Math.min(w,h)*.8,x=w/2+d/60*w,y=h*.56+(got?Math.max(-h*.3,Math.min(h*.3,(beta-80)*h/100)):0);
     if(Math.abs(d)<55)ghost(g,x,y,s,col,.94);
@@ -621,7 +622,8 @@ async function startAR(t){
     if(on){g.strokeStyle="#f0a63a";g.lineWidth=5;g.beginPath();g.arc(w/2,h/2,46,-1.57,-1.57+6.283*Math.min(1,hold));g.stroke()}
     g.font="20px 'Special Elite',monospace";g.textAlign="center";g.fillStyle="#ece4d2";g.shadowColor="#000";g.shadowBlur=8;
     g.fillText(on?"Niet bewegen…":d>0?"Draai naar rechts ▶":"◀ Draai naar links",w/2,h*.16);
-    if(!got){g.font="14px sans-serif";g.fillText("Sleep over het beeld om rond te kijken",w/2,h*.16+26)}
+    g.font="14px sans-serif";g.fillText(ts-t0>9000?"De schaduw komt naar je toe":"Draai je telefoon, of sleep over het beeld",w/2,h*.16+26);
+    if(Math.abs(d)>=30){const sx2=d>0?w-26:26,dir=d>0?1:-1;g.fillStyle="#f0a63a";g.beginPath();g.moveTo(sx2+dir*14,h/2);g.lineTo(sx2-dir*10,h/2-22);g.lineTo(sx2-dir*10,h/2+22);g.fill();g.fillStyle="#ece4d2"}
     g.shadowBlur=0;
     if(hold>=1)return end(true);
     raf=requestAnimationFrame(f)};
